@@ -29,8 +29,7 @@ describe("App", () => {
     // Key sections should exist even before any data loads.
     expect(screen.getByRole("heading", { name: /Selection/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Snapshots/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Field discovery/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Tracked fields/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Fields \(Snapshot A\)/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Diff/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Trends/i })).toBeInTheDocument();
   });
@@ -334,7 +333,7 @@ describe("App", () => {
 
     fireEvent.click(await screen.findByText(/snap-2/));
 
-    expect(await screen.findByRole("heading", { name: /Tracked fields/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /Fields \(Snapshot A\)/i })).toBeInTheDocument();
 
     const tracked = await screen.findByLabelText("Tracked root/FirmwareVersion");
     expect((tracked as HTMLInputElement).checked).toBe(true);

@@ -59,3 +59,13 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Add server-side timeseries endpoint and switch UI trends to it
 - [x] Optional: add server-side diff endpoint and switch UI to it
 - [x] Plot numeric trend values as a chart in the UI
+
+## Task 7: Web UX adjustment — combine Fields + Friendly names
+- [x] Step 1: Update web UI tests to expect a single combined Fields section → run → expect FAIL
+- [x] Step 2: Update `apps/web/src/App.tsx` to remove separate Field discovery + Tracked fields cards
+	- One table shows: Field key, Value (A), Type, Tracked, Friendly name
+	- Value/Type are read-only, sourced from Snapshot A
+	- Editing/saving tracked/friendly is disabled when ConfigurationId is missing
+- [x] Step 3: Run `npm -w apps/web test` → expect PASS
+- [x] Step 4: Run `npm -w apps/web run typecheck` → expect PASS
+- [x] Step 5: Commit (`feat(web): combine field discovery and friendly names`)

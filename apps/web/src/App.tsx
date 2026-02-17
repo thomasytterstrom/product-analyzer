@@ -61,6 +61,8 @@ export default function App() {
   const [configurationFieldsLoading, setConfigurationFieldsLoading] = useState(false);
   const [configurationFieldsSaving, setConfigurationFieldsSaving] = useState(false);
 
+  const valueByFieldKey = new Map(fields.map((f) => [f.fieldKey, f] as const));
+
   // Field discovery: seed the tracked-fields editor with keys present in the selected snapshot.
   // This enables first-time configurations (no rows in metadata DB yet) to start tracking.
   // Important: run after config-fields loading completes so an empty GET can't overwrite seeded rows.
@@ -554,124 +556,111 @@ export default function App() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Field discovery</CardTitle>
-            <CardDescription>Inspect the fields present in snapshot A.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!selectedDeviceSnapshotId ? (
-              <p className="text-sm text-muted-foreground">Select a snapshot to discover fields.</p>
-            ) : fields.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No fields loaded yet.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[45%]">Field</TableHead>
-                    <TableHead>Value</TableHead>
-                    <TableHead className="w-[8rem]">Type</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {fields.map((f) => (
-                    <TableRow key={f.fieldKey}>
-                      <TableCell className="font-mono text-xs">{f.fieldKey}</TableCell>
-                      <TableCell className="break-all">{f.valueText}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{f.valueType}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Tracked fields</CardTitle>
+            <CardTitle>Fields (Snapshot A)</CardTitle>
             <CardDescription>
-              Choose which fields to track (per ConfigurationId). Tracked fields drive Diff and Trends.
+              View Snapshot A values and configure tracked fields + friendly names (per ConfigurationId).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {!selectedDeviceSnapshotId ? (
-              <p className="text-sm text-muted-foreground">Select a snapshot to edit tracked fields.</p>
-            ) : !configurationId ? (
-              <p className="text-sm text-muted-foreground">
-                This snapshot has no ConfigurationId field. (Expected key: <span className="font-mono">root/ConfigurationId</span>)
-              </p>
+              <p className="text-sm text-muted-foreground">Select a snapshot to view and configure fields.</p>
+            ) : fields.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No fields loaded yet.</p>
             ) : (
               <>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="font-medium">ConfigurationId:</span>
-                  <Badge variant="outline" className="max-w-[30rem] truncate" title={configurationId}>
-                    {configurationId}
-                  </Badge>
+                  {configurationId ? (
+                    <Badge variant="outline" className="max-w-[30rem] truncate" title={configurationId}>
+                      {configurationId}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">(missing)</Badge>
+                  )}
+                  {!configurationId ? (
+                    <span className="text-xs text-muted-foreground">
+                      Cannot save tracked/friendly names without <span className="font-mono">root/ConfigurationId</span>.
+                    </span>
+                  ) : null}
                 </div>
 
-                {configurationFieldsLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
-
-                {!configurationFieldsLoading && configurationFields.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No fields discovered yet. Select a snapshot to discover fields, then choose which ones to track.
-                  </p>
+                {configurationId && configurationFieldsLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading tracked fields…</p>
                 ) : null}
 
-                {configurationFields.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Field key</TableHead>
-                        <TableHead className="w-[9rem]">Tracked</TableHead>
-                        <TableHead>Friendly name</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {configurationFields.map((row) => (
-                        <TableRow key={row.fieldKey}>
-                          <TableCell className="font-mono text-xs">{row.fieldKey}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                aria-label={`Tracked ${row.fieldKey}`}
-                                checked={row.tracked}
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[34%]">Field key</TableHead>
+                      <TableHead>Value (A)</TableHead>
+                      <TableHead className="w-[7rem]">Type</TableHead>
+                      <TableHead className="w-[9rem]">Tracked</TableHead>
+                      <TableHead className="w-[18rem]">Friendly name</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(configurationId ? configurationFields : fields)
+                      .filter((row) => ("fieldKey" in row ? row.fieldKey !== "root/ConfigurationId" : true))
+                      .map((row) => {
+                        const fieldKey = (row as any).fieldKey as string;
+                        const snap = valueByFieldKey.get(fieldKey);
+                        const editable = Boolean(configurationId) && !configurationFieldsLoading;
+
+                        const tracked = configurationId ? (row as any).tracked : false;
+                        const friendlyName = configurationId ? ((row as any).friendlyName as string | null) : null;
+
+                        return (
+                          <TableRow key={fieldKey}>
+                            <TableCell className="font-mono text-xs">{fieldKey}</TableCell>
+                            <TableCell className="break-all">{snap?.valueText ?? ""}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{snap?.valueType ?? ""}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Checkbox
+                                  aria-label={`Tracked ${fieldKey}`}
+                                  checked={Boolean(tracked)}
+                                  disabled={!editable}
+                                  onChange={(e) => {
+                                    const checked = (e.target as HTMLInputElement).checked;
+                                    if (!configurationId) return;
+                                    setConfigurationFields((prev) =>
+                                      prev.map((p) =>
+                                        p.fieldKey === fieldKey ? { ...p, tracked: checked } : p
+                                      )
+                                    );
+                                  }}
+                                />
+                                <span className="text-xs text-muted-foreground">Track</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                aria-label={`Friendly name ${fieldKey}`}
+                                value={friendlyName ?? ""}
+                                placeholder="Optional"
+                                disabled={!editable}
                                 onChange={(e) => {
-                                  const checked = (e.target as HTMLInputElement).checked;
+                                  const value = e.target.value;
+                                  if (!configurationId) return;
                                   setConfigurationFields((prev) =>
                                     prev.map((p) =>
-                                      p.fieldKey === row.fieldKey ? { ...p, tracked: checked } : p
+                                      p.fieldKey === fieldKey ? { ...p, friendlyName: value } : p
                                     )
                                   );
                                 }}
                               />
-                              <span className="text-xs text-muted-foreground">Track</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              aria-label={`Friendly name ${row.fieldKey}`}
-                              value={row.friendlyName ?? ""}
-                              placeholder="Optional"
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                setConfigurationFields((prev) =>
-                                  prev.map((p) =>
-                                    p.fieldKey === row.fieldKey ? { ...p, friendlyName: value } : p
-                                  )
-                                );
-                              }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : null}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
 
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     onClick={() => void saveTrackedFields()}
-                    disabled={configurationFieldsSaving || configurationFieldsLoading}
+                    disabled={!configurationId || configurationFieldsSaving || configurationFieldsLoading}
                   >
                     {configurationFieldsSaving ? "Saving…" : "Save tracked fields"}
                   </Button>
@@ -791,7 +780,7 @@ export default function App() {
 
                 {trackedFieldKeys.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Tracked fields section.
+                    To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
                   </p>
                 ) : null}
 
