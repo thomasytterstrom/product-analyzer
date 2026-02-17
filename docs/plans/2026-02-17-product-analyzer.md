@@ -2,19 +2,74 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Build a Vite (React) web app + Node backend that reads snapshot data from a local SQLite database and visualizes how product attribute values change over time.
+**Goal:** Build a Vite (React) web app + Node backend that reads existing snapshot data from a local SQLite database (`DeviceSnapshot` + `DeviceSnapshotJson`) and lets users compare snapshots and graph selected parameter values over time.
 
-**Architecture:** A small monorepo with `apps/web` (Vite + Tailwind + shadcn/ui) calling `apps/api` (Fastify + Prisma + SQLite). The backend exposes read-only endpoints for products, snapshots, and computed “diffs” between snapshots; the frontend renders a product timeline view and snapshot-to-snapshot comparisons.
+**Architecture:** A small monorepo with `apps/web` (Vite + Tailwind + shadcn/ui) calling `apps/api` (Fastify + SQLite). The API reads snapshots from the existing DB (read-only), flattens JSON payloads into stable field keys, stores user-chosen tracked fields + friendly names in an **app-owned sidecar SQLite metadata DB**, and exposes endpoints for diffs + time-series. UI starts with product selection (ProductNumber → SerialNumber), then snapshots.
 
-**Tech Stack:** Vite + React + TypeScript, Tailwind CSS, shadcn/ui, Fastify, Prisma (SQLite), Zod, Vitest, Playwright.
+**Tech Stack:** Vite + React + TypeScript, Tailwind CSS, shadcn/ui, Fastify, SQLite (source DB + sidecar metadata DB), Zod, Vitest, Playwright.
 
 ---
 
+## How to update this plan (add more info safely)
+
+This plan is meant to evolve. When you learn something new (DB schema details, a new visualization requirement, auth, hosting, etc.), update the plan by:
+
+1) **Update the “Assumptions / Decisions” section first** (add/remove bullets, date-stamp decisions).
+2) **Fill in “Project-specific details” below** (especially DB schema + mapping).
+3) **Only then adjust tasks**:
+   - Add a new task rather than rewriting many tasks (keeps diffs small).
+   - If a task changes meaningfully, add a short “Why changed” note under it.
+4) **Keep tasks bite-sized** (2–5 minutes each): “write failing test” → “run to fail” → “minimal code” → “run to pass” → “commit”.
+5) **Prefer adding acceptance criteria** instead of adding complexity (hidden tests love clarity).
+
+If you paste additional info in chat, I can incorporate it directly into this file.
+
+## Project-specific details (fill these in as you learn them)
+
+### SQLite database
+
+- **DB file path (dev):** `TBD` (example: `data/product-analyzer.db`)
+- **How snapshots are represented today:** `TBD`
+  - Table(s): `TBD`
+  - Snapshot identifier: `TBD` (id? timestamp? batch id?)
+  - Snapshot timestamp column: `TBD`
+
+### Existing schema (paste from SQLite)
+
+Paste outputs here (or link) so the implementation can map to reality:
+
+- `PRAGMA table_info(<table>);`
+- `SELECT name, sql FROM sqlite_master WHERE type='table' ORDER BY name;`
+
+### Canonical-to-existing mapping
+
+If your DB schema differs from the canonical model, document the mapping here:
+
+- Canonical `Product.id` → `<table>.<column>`
+- Canonical `Snapshot.takenAt` → `<table>.<column>`
+- Canonical `ProductSnapshotValue.key/value` → `<table>.<column>`
+
+### Acceptance criteria (add concrete user-visible behaviors)
+
+- [ ] I can select a product and see all available snapshots ordered by time.
+- [ ] I can compare any two snapshots and see Added/Removed/Changed/Unchanged attribute rows.
+- [ ] I can see a timeline summary across consecutive snapshots (counts per hop).
+- [ ] The UI is usable with 1k+ products and 50+ snapshots (pagination and/or search).
+
+### Non-goals (keep scope sane)
+
+- No writes back to DB (read-only) in v1.
+- No auth in v1 (unless required for internal deployment).
+- No AI/LLM enrichment in v1.
+
 ## Assumptions / Decisions (lock these in early)
 
-- **Data is already in SQLite** (as you described). If schema is unknown, we’ll add an adapter layer to map existing tables into a canonical model.
-- **Read-only first**: we focus on analysis + visualization; any write/import tools come later.
-- **Snapshot definition**: a “snapshot” is a point-in-time capture of product attributes (e.g., daily export). Snapshots must be orderable by timestamp.
+- **Source DB schema is fixed**: we read from `DeviceSnapshot` and `DeviceSnapshotJson` (read-only).
+- **Product identity** is `(ProductNumber, SerialNumber)`.
+- **Snapshot ordering** is by `DeviceSnapshot.TimeStampUtc`.
+- **Parameter configurations** (tracked fields + friendly names) are saved **per `ConfigurationId`** in a sidecar DB.
+- **Multiple snapshots comparisons/graphs** require all selected snapshots share the same `ConfigurationId` (v1 blocks mismatch).
+- **Events arrays** (`EventData.Events`) are not part of the generic parameter diff in v1 (optional summary later).
 
 If any of these are wrong, stop after Task 2 and adjust.
 
@@ -24,36 +79,42 @@ If any of these are wrong, stop after Task 2 and adjust.
 - `apps/api/` — Fastify API + Prisma + SQLite file access
 - `packages/shared/` — shared types + Zod schemas used by both
 
-## Data Model (canonical, even if your DB differs)
+Note: we will **not** use Prisma for the existing snapshot DB in v1; we’ll use a lightweight SQLite client and keep the source DB read-only.
+
+## Data Model (derived from your actual DB)
 
 We’ll query/represent:
 
-- `Product`:
-  - `id: string` (or int)
-  - `name: string`
-  - `sku?: string`
-  - `category?: string`
+- `Product` (identity):
+  - `productNumber: string`
+  - `serialNumber: string`
 
 - `Snapshot`:
-  - `id: string` (or int)
-  - `takenAt: datetime`
-  - `source?: string` (optional label)
+  - `deviceSnapshotId: string` (DeviceSnapshot.Id)
+  - `snapshotId: string` (DeviceSnapshot.SnapshotId)
+  - `timeStampUtc: string` (DeviceSnapshot.TimeStampUtc)
+  - `configurationId: string`
 
-- `ProductSnapshotValue`:
-  - `productId`
-  - `snapshotId`
-  - `key: string` (attribute name)
-  - `value: string | number | boolean | null`
+- `FlattenedField` (computed from JSON):
+  - `fieldKey: string` (e.g., `node:master/<FieldId>`, `composite/<FieldId>`, `root/<FieldName>`)
+  - `valueText: string | null`
+  - `valueType: string | null`
+
+- `ConfigurationField` (stored in sidecar metadata DB):
+  - `configurationId: string`
+  - `fieldKey: string`
+  - `friendlyName?: string`
+  - `tracked: boolean`
 
 ### Diff logic
-For any product and two snapshots (A → B), we compute:
+For any product and two snapshots (A → B), we compute diffs over **tracked fieldKeys** for the snapshots’ `ConfigurationId`:
 
 - `added`: keys present in B but not A
 - `removed`: keys present in A but not B
 - `changed`: keys present in both but values differ
 - `unchanged`: keys equal
 
-We’ll normalize values as strings for display, but preserve raw type where possible.
+We normalize values as strings for display (`valueText`) and carry `valueType` when present.
 
 ---
 
@@ -191,111 +252,37 @@ git commit -m "feat(shared): add attribute diff computation"
 
 ---
 
-## Task 3: Backend DB access (Prisma + SQLite)
+## Task 3: Backend DB access (read-only source DB + sidecar metadata DB)
 
 **Files:**
-- Create: `apps/api/prisma/schema.prisma`
-- Create: `apps/api/src/db.ts`
+- Create: `apps/api/src/db/sourceDb.ts`
+- Create: `apps/api/src/db/metadataDb.ts`
 - Create: `apps/api/src/env.ts`
-- Test: `apps/api/src/db.test.ts`
+- Test: `apps/api/src/db/sourceDb.test.ts`
+- Test: `apps/api/src/db/metadataDb.test.ts`
 
-**Step 0: Decide DB mode**
+**Step 1: Write failing tests**
 
-Two options:
-1) **Use existing SQLite file** (recommended): backend points Prisma at an existing `.db` file.
-2) **Create new DB schema**: add migrations and (optionally) an import routine.
+- source DB: can connect and query `sqlite_master` (or `SELECT 1`)
+- metadata DB: creates table `ConfigurationField` and can upsert/query rows
 
-This plan assumes (1), but we’ll still create a minimal canonical schema so the code is testable.
-
-**Step 1: Write failing test for DB connection**
-
-```ts
-import { describe, expect, it } from "vitest";
-import { createDb } from "./db";
-
-describe("db", () => {
-  it("can connect and run a simple query", async () => {
-    const db = createDb({ url: "file:./tmp-test.db" });
-    const result = await db.$queryRawUnsafe<{ ok: number }[]>("SELECT 1 as ok");
-    expect(result[0].ok).toBe(1);
-  });
-});
-```
-
-**Step 2: Run test to verify it fails**
+**Step 2: Run tests to verify they fail**
 
 Run: `npm -w apps/api test`
-Expected: FAIL (Prisma not installed / createDb missing)
+Expected: FAIL (db modules not implemented)
 
-**Step 3: Minimal Prisma + db wrapper**
+**Step 3: Minimal implementation**
 
-- `schema.prisma` (canonical tables)
+- Use a lightweight SQLite client (Node) to open:
+  - `SOURCE_DB_PATH` (existing DB)
+  - `METADATA_DB_PATH` (sidecar DB)
+- Implement:
+  - `getProductNumbers()`
+  - `getSerialNumbers(productNumber)`
+  - `getSnapshots(productNumber, serialNumber)`
+  - metadata: `upsertConfigurationFields(configurationId, fields[])`, `listConfigurationFields(configurationId)`
 
-```prisma
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-
-model Product {
-  id        String   @id
-  name      String
-  sku       String?
-  category  String?
-  values    ProductSnapshotValue[]
-}
-
-model Snapshot {
-  id       String   @id
-  takenAt  DateTime
-  source   String?
-  values   ProductSnapshotValue[]
-}
-
-model ProductSnapshotValue {
-  productId  String
-  snapshotId String
-  key        String
-  value      String?
-
-  product  Product  @relation(fields: [productId], references: [id])
-  snapshot Snapshot @relation(fields: [snapshotId], references: [id])
-
-  @@id([productId, snapshotId, key])
-  @@index([snapshotId])
-  @@index([productId])
-}
-```
-
-- `env.ts`
-
-```ts
-import { z } from "zod";
-
-const EnvSchema = z.object({
-  DATABASE_URL: z.string().min(1)
-});
-
-export function getEnv(env: NodeJS.ProcessEnv) {
-  return EnvSchema.parse(env);
-}
-```
-
-- `db.ts`
-
-```ts
-import { PrismaClient } from "@prisma/client";
-
-export function createDb(opts: { url: string }) {
-  return new PrismaClient({ datasources: { db: { url: opts.url } } });
-}
-```
-
-**Step 4: Run tests to verify it passes**
+**Step 4: Run tests to verify pass**
 
 Run: `npm -w apps/api test`
 Expected: PASS
@@ -303,8 +290,8 @@ Expected: PASS
 **Step 5: Commit**
 
 ```bash
-git add apps/api/prisma apps/api/src/db.ts apps/api/src/env.ts apps/api/src/db.test.ts
-git commit -m "feat(api): add Prisma sqlite db access"
+git add apps/api/src/db apps/api/src/env.ts
+git commit -m "feat(api): add sqlite access for source and metadata db"
 ```
 
 ---
@@ -375,34 +362,35 @@ git commit -m "feat(api): add Fastify server and health endpoint"
 ## Task 5: Read endpoints: products + snapshots
 
 **Files:**
-- Create: `apps/api/src/routes/products.ts`
+- Create: `apps/api/src/routes/productNumbers.ts`
+- Create: `apps/api/src/routes/serialNumbers.ts`
 - Create: `apps/api/src/routes/snapshots.ts`
 - Modify: `apps/api/src/server.ts` (register routes)
-- Test: `apps/api/src/routes/products.test.ts`
+- Test: `apps/api/src/routes/productNumbers.test.ts`
+- Test: `apps/api/src/routes/serialNumbers.test.ts`
 - Test: `apps/api/src/routes/snapshots.test.ts`
 
 **Step 1: Write failing tests (seed minimal data via Prisma)**
 
-Example for products:
+Example for product numbers:
 
 ```ts
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildServer } from "../server";
 import { createDb } from "../db";
 
-describe("GET /products", () => {
+describe("GET /product-numbers", () => {
   beforeEach(async () => {
     const db = createDb({ url: "file:./tmp-test.db" });
-    await db.product.deleteMany();
-    await db.product.create({ data: { id: "p1", name: "Prod 1" } });
+    // seed a test sqlite db with minimal DeviceSnapshot rows (ProductNumber/SerialNumber)
     await db.$disconnect();
   });
 
-  it("lists products", async () => {
+  it("lists product numbers", async () => {
     const app = buildServer({ databaseUrl: "file:./tmp-test.db" });
-    const res = await app.inject({ method: "GET", url: "/products" });
+    const res = await app.inject({ method: "GET", url: "/product-numbers" });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual([{ id: "p1", name: "Prod 1" }]);
+    expect(res.json()).toEqual(["531285301"]);
   });
 });
 ```
@@ -441,7 +429,7 @@ git commit -m "feat(api): add products and snapshots read endpoints"
 
 **Endpoint shape**
 
-- `GET /products/:productId/diff?snapshotA=<id>&snapshotB=<id>`
+- `GET /products/:productNumber/:serialNumber/diff?snapshotA=<deviceSnapshotId>&snapshotB=<deviceSnapshotId>`
 
 Response:
 
@@ -459,7 +447,7 @@ Response:
 
 **Step 1: Write failing test**
 
-Seed values for A and B and expect changed/added/removed.
+Seed two snapshot JSON payloads (A and B) and expect changed/added/removed for **tracked** keys.
 
 **Step 2: Run test; verify fail**
 
@@ -468,9 +456,22 @@ Expected: FAIL
 
 **Step 3: Minimal implementation**
 
-- Query `ProductSnapshotValue` for `(productId, snapshotId)` for both snapshots
-- Convert arrays to maps `{ [key]: value }`
+- Load JSON for both snapshots via `DeviceSnapshotJson`
+- Flatten to `{ [fieldKey]: valueText }`
+- Filter to tracked keys (from metadata DB for the snapshots’ `ConfigurationId`)
 - Call `diffAttributes` from `packages/shared`
+
+---
+
+## Task 7: JSON flattening + field discovery endpoint
+
+**Files:**
+- Create: `packages/shared/src/flatten.ts`
+- Test: `packages/shared/src/flatten.test.ts`
+- Create: `apps/api/src/routes/fields.ts`
+- Test: `apps/api/src/routes/fields.test.ts`
+
+**Goal:** given a snapshot JSON payload, return discovered `fieldKey`s and sample values.
 
 **Step 4: Run tests; verify pass**
 
@@ -483,7 +484,7 @@ git commit -m "feat(api): add diff endpoint for product snapshots"
 
 ---
 
-## Task 7: Frontend scaffolding (Vite + Tailwind + shadcn/ui)
+## Task 8: Frontend scaffolding (Vite + Tailwind + shadcn/ui)
 
 **Files:**
 - Create: `apps/web/` (Vite React TS)
@@ -530,7 +531,7 @@ git commit -m "chore(web): scaffold Vite React UI with Tailwind"
 
 ---
 
-## Task 8: Frontend data fetching (products + snapshots)
+## Task 9: Frontend data fetching (product numbers + serial numbers + snapshots)
 
 **Files:**
 - Create: `apps/web/src/lib/api.ts`
@@ -549,9 +550,14 @@ git commit -m "chore(web): scaffold Vite React UI with Tailwind"
 **Step 3: Minimal implementation**
 
 - `api.ts` wrappers:
-  - `listProducts()`
-  - `listSnapshots()`
-  - `getProductDiff(productId, snapshotA, snapshotB)`
+  - `listProductNumbers()`
+  - `listSerialNumbers(productNumber)`
+  - `listSnapshots(productNumber, serialNumber)`
+  - `getSnapshotFields(deviceSnapshotId)`
+  - `getConfigurationFields(configurationId)`
+  - `saveConfigurationFields(configurationId, payload)`
+  - `getProductDiff(productNumber, serialNumber, snapshotA, snapshotB)`
+  - `getTimeSeries(productNumber, serialNumber, snapshotIds, fieldKeys)`
 
 Use a single `VITE_API_BASE_URL`.
 
@@ -566,12 +572,13 @@ git commit -m "feat(web): list products and snapshots"
 
 ---
 
-## Task 9: Product diff UI (snapshot picker + diff table)
+## Task 10: Parameter configuration editor + diff UI
 
 **Files:**
 - Create: `apps/web/src/components/SnapshotPicker.tsx`
+- Create: `apps/web/src/components/ParameterConfigEditor.tsx`
 - Create: `apps/web/src/components/DiffTable.tsx`
-- Modify: `apps/web/src/pages/ProductTimelinePage.tsx`
+- Modify: `apps/web/src/pages/ProductPage.tsx` (or equivalent)
 - Test: `apps/web/src/components/DiffTable.test.tsx`
 
 **Step 1: Write failing tests**
@@ -596,7 +603,7 @@ git commit -m "feat(web): add snapshot diff UI"
 
 ---
 
-## Task 10: “Lifecycle” view: timeline of changes across many snapshots
+## Task 11: Trends view (graphs across many snapshots)
 
 **Files:**
 - Create: `apps/api/src/routes/productTimeline.ts` (or extend existing)
@@ -605,9 +612,9 @@ git commit -m "feat(web): add snapshot diff UI"
 
 **Backend endpoint**
 
-- `GET /products/:productId/timeline`
+- `POST /products/:productNumber/:serialNumber/timeseries`
 
-Returns an array of consecutive diffs:
+Returns values aligned per snapshot for charting:
 
 ```ts
 {
@@ -632,7 +639,8 @@ Returns an array of consecutive diffs:
 
 **Step 3: Implement minimal logic**
 
-- For each consecutive snapshot pair, compute diff counts only (cheap)
+- For selected snapshots, load JSON and flatten only selected tracked keys
+- Return time-series points: `{ snapshotId, timeStampUtc, valueText }`
 
 **Step 4: Run; verify pass**
 
