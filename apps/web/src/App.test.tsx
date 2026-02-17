@@ -245,7 +245,7 @@ describe("App", () => {
             {
               configurationId: "cfg-1",
               fieldKey: "root/FirmwareVersion",
-              tracked: 1,
+              tracked: true,
               friendlyName: "FW"
             }
           ]),
@@ -262,7 +262,7 @@ describe("App", () => {
             {
               configurationId: "cfg-1",
               fieldKey: "root/FirmwareVersion",
-              tracked: 0,
+              tracked: false,
               friendlyName: "Firmware"
             }
           ]),
@@ -313,7 +313,7 @@ describe("App", () => {
     expect(putCall?.init?.headers).toEqual({ "content-type": "application/json" });
     expect(putCall?.init?.body).toBe(
       JSON.stringify({
-        fields: [{ fieldKey: "root/FirmwareVersion", tracked: 0, friendlyName: "Firmware" }]
+        fields: [{ fieldKey: "root/FirmwareVersion", tracked: false, friendlyName: "Firmware" }]
       })
     );
   });

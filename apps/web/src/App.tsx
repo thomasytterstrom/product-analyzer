@@ -19,7 +19,7 @@ export default function App() {
     fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
 
   const [configurationFields, setConfigurationFields] = useState<
-    Array<{ configurationId: string; fieldKey: string; tracked: number; friendlyName?: string | null }>
+    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName?: string | null }>
   >([]);
   const [configurationFieldsLoading, setConfigurationFieldsLoading] = useState(false);
   const [configurationFieldsSaving, setConfigurationFieldsSaving] = useState(false);
@@ -105,7 +105,12 @@ export default function App() {
         configurationFields.map((f) => ({
           fieldKey: f.fieldKey,
           tracked: f.tracked,
-          friendlyName: f.friendlyName ?? ""
+          friendlyName:
+            f.friendlyName === undefined || f.friendlyName === null
+              ? null
+              : f.friendlyName.trim().length === 0
+                ? null
+                : f.friendlyName
         }))
       );
       setConfigurationFields(updated);
@@ -214,12 +219,12 @@ export default function App() {
                   <input
                     type="checkbox"
                     aria-label={`Tracked ${row.fieldKey}`}
-                    checked={row.tracked === 1}
+                    checked={row.tracked}
                     onChange={(e) => {
                       const checked = e.target.checked;
                       setConfigurationFields((prev) =>
                         prev.map((p) =>
-                          p.fieldKey === row.fieldKey ? { ...p, tracked: checked ? 1 : 0 } : p
+                          p.fieldKey === row.fieldKey ? { ...p, tracked: checked } : p
                         )
                       );
                     }}

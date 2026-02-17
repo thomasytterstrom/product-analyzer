@@ -10,13 +10,13 @@ export type ApiClient = {
   ): Promise<Array<{ fieldKey: string; valueText: string; valueType: string }>>;
 
   getConfigurationFields(configurationId: string): Promise<
-    Array<{ configurationId: string; fieldKey: string; tracked: number; friendlyName?: string | null }>
+    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName?: string | null }>
   >;
   saveConfigurationFields(
     configurationId: string,
-    fields: Array<{ fieldKey: string; tracked: number; friendlyName?: string | null }>
+    fields: Array<{ fieldKey: string; tracked: boolean; friendlyName?: string | null }>
   ): Promise<
-    Array<{ configurationId: string; fieldKey: string; tracked: number; friendlyName?: string | null }>
+    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName?: string | null }>
   >;
 };
 
@@ -84,14 +84,14 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
       return (await res.json()) as Array<{
         configurationId: string;
         fieldKey: string;
-        tracked: number;
+        tracked: boolean;
         friendlyName?: string | null;
       }>;
     },
 
     async saveConfigurationFields(
       configurationId: string,
-      fields: Array<{ fieldKey: string; tracked: number; friendlyName?: string | null }>
+      fields: Array<{ fieldKey: string; tracked: boolean; friendlyName?: string | null }>
     ) {
       const res = await fetch(
         `${baseUrl}/configurations/${encodeURIComponent(configurationId)}/fields`,
@@ -107,7 +107,7 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
       return (await res.json()) as Array<{
         configurationId: string;
         fieldKey: string;
-        tracked: number;
+        tracked: boolean;
         friendlyName?: string | null;
       }>;
     }

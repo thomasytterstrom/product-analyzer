@@ -122,7 +122,7 @@ describe("createApiClient", () => {
           {
             configurationId: "cfg-1",
             fieldKey: "root/FirmwareVersion",
-            tracked: 1,
+            tracked: true,
             friendlyName: "FW"
           }
         ]),
@@ -139,7 +139,7 @@ describe("createApiClient", () => {
       {
         configurationId: "cfg-1",
         fieldKey: "root/FirmwareVersion",
-        tracked: 1,
+        tracked: true,
         friendlyName: "FW"
       }
     ]);
@@ -157,7 +157,7 @@ describe("createApiClient", () => {
           {
             configurationId: "cfg-1",
             fieldKey: "root/FirmwareVersion",
-            tracked: 0,
+            tracked: false,
             friendlyName: "Firmware"
           }
         ]),
@@ -169,14 +169,14 @@ describe("createApiClient", () => {
     };
 
     const result = await api.saveConfigurationFields("cfg-1", [
-      { fieldKey: "root/FirmwareVersion", tracked: 0, friendlyName: "Firmware" }
+      { fieldKey: "root/FirmwareVersion", tracked: false, friendlyName: "Firmware" }
     ]);
 
     expect(result).toEqual([
       {
         configurationId: "cfg-1",
         fieldKey: "root/FirmwareVersion",
-        tracked: 0,
+        tracked: false,
         friendlyName: "Firmware"
       }
     ]);
@@ -186,7 +186,7 @@ describe("createApiClient", () => {
     expect(calls[0].init?.headers).toEqual({ "content-type": "application/json" });
     expect(calls[0].init?.body).toBe(
       JSON.stringify({
-        fields: [{ fieldKey: "root/FirmwareVersion", tracked: 0, friendlyName: "Firmware" }]
+        fields: [{ fieldKey: "root/FirmwareVersion", tracked: false, friendlyName: "Firmware" }]
       })
     );
   });
