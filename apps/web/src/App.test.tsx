@@ -361,6 +361,122 @@ describe("App", () => {
     );
   });
 
+  it("filters Fields (Snapshot A) rows by field key and friendly name", async () => {
+    globalThis.fetch = async (url: any, init?: any) => {
+      const u = String(url);
+
+      if (u.endsWith("/product-numbers")) {
+        return new Response(JSON.stringify(["531285301"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/serial-numbers")) {
+        return new Response(JSON.stringify(["S1"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/products/") && u.includes("/snapshots")) {
+        return new Response(
+          JSON.stringify([
+            {
+              deviceSnapshotId: "ds1",
+              snapshotId: "snap-1",
+              timeStampUtc: "2026-02-17T07:50:23.000Z"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+      if (u.includes("/snapshots/ds1/fields")) {
+        return new Response(
+          JSON.stringify([
+            {
+              fieldKey: "root/ConfigurationId",
+              valueText: "cfg-1",
+              valueType: "string"
+            },
+            {
+              fieldKey: "root/FirmwareVersion",
+              valueText: "599807801M",
+              valueType: "string"
+            },
+            {
+              fieldKey: "root/EngineSpeed",
+              valueText: "3120",
+              valueType: "number"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+      if (u.includes("/configurations/cfg-1/fields")) {
+        return new Response(
+          JSON.stringify([
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/FirmwareVersion",
+              tracked: true,
+              friendlyName: "FW"
+            },
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/EngineSpeed",
+              tracked: false,
+              friendlyName: null
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    render(<App />);
+
+    await screen.findByRole("option", { name: "531285301" });
+    fireEvent.change(screen.getByLabelText("Product number"), {
+      target: { value: "531285301" }
+    });
+
+    await screen.findByRole("option", { name: "S1" });
+    fireEvent.change(screen.getByLabelText("Serial number"), {
+      target: { value: "S1" }
+    });
+
+    fireEvent.click(await screen.findByText(/snap-1/));
+
+    const fieldsTable = await screen.findByLabelText("Fields (Snapshot A)");
+    const w = within(fieldsTable);
+
+    // Wait for fields to be rendered.
+    expect(await w.findByText("root/FirmwareVersion")).toBeInTheDocument();
+    expect(await w.findByText("root/EngineSpeed")).toBeInTheDocument();
+
+    const filter = await screen.findByLabelText(/filter fields/i);
+
+    // Friendly-name filter.
+    fireEvent.change(filter, { target: { value: "fw" } });
+    expect(w.getByText("root/FirmwareVersion")).toBeInTheDocument();
+    expect(w.queryByText("root/EngineSpeed")).not.toBeInTheDocument();
+
+    // Field-key filter.
+    fireEvent.change(filter, { target: { value: "engine" } });
+    expect(w.queryByText("root/FirmwareVersion")).not.toBeInTheDocument();
+    expect(w.getByText("root/EngineSpeed")).toBeInTheDocument();
+  });
+
   it("saves friendlyName as null when cleared", async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = [];
 

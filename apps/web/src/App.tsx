@@ -64,10 +64,27 @@ export default function App() {
   const [configurationFieldsSaving, setConfigurationFieldsSaving] = useState(false);
   const [configurationFieldsSaveError, setConfigurationFieldsSaveError] = useState<string>("");
 
+  const [fieldFilter, setFieldFilter] = useState<string>("");
+
   const valueByFieldKey = new Map(fields.map((f) => [f.fieldKey, f] as const));
+
+  const normalizedFieldFilter = fieldFilter.trim().toLowerCase();
 
   function isConfigurationFieldRow(row: SnapshotField | ConfigurationFieldRow): row is ConfigurationFieldRow {
     return "tracked" in row;
+  }
+
+  function fieldRowMatchesFilter(row: SnapshotField | ConfigurationFieldRow) {
+    if (!normalizedFieldFilter) return true;
+
+    const fieldKey = row.fieldKey;
+    const snap = valueByFieldKey.get(fieldKey);
+    const friendlyName = isConfigurationFieldRow(row) ? row.friendlyName : null;
+    const valueText = isConfigurationFieldRow(row) ? (snap?.valueText ?? "") : row.valueText;
+    const valueType = isConfigurationFieldRow(row) ? (snap?.valueType ?? "") : row.valueType;
+
+    const haystack = `${fieldKey} ${friendlyName ?? ""} ${valueText ?? ""} ${valueType ?? ""}`.toLowerCase();
+    return haystack.includes(normalizedFieldFilter);
   }
 
   // Field discovery: seed the tracked-fields editor with keys present in the selected snapshot.
@@ -599,6 +616,16 @@ export default function App() {
                   <p className="text-sm text-muted-foreground">Loading tracked fields…</p>
                 ) : null}
 
+                <label className="grid max-w-md gap-2 text-sm">
+                  <span className="font-medium">Filter fields</span>
+                  <Input
+                    aria-label="Filter fields"
+                    value={fieldFilter}
+                    placeholder="Search by field key, friendly name, or value…"
+                    onChange={(e) => setFieldFilter(e.target.value)}
+                  />
+                </label>
+
                 <Table aria-label="Fields (Snapshot A)">
                   <TableHeader>
                     <TableRow>
@@ -612,6 +639,7 @@ export default function App() {
                   <TableBody>
                     {(configurationId ? (configurationFields as Array<SnapshotField | ConfigurationFieldRow>) : fields)
                       .filter((row) => row.fieldKey !== "root/ConfigurationId")
+                      .filter((row) => fieldRowMatchesFilter(row))
                       .map((row) => {
                         const fieldKey = row.fieldKey;
                         const snap = valueByFieldKey.get(fieldKey);

@@ -70,6 +70,16 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Step 4: Run `npm -w apps/web run typecheck` → expect PASS
 - [x] Step 5: Commit (`feat(web): combine field discovery and friendly names`)
 
+## Task 8: Web UX — filter/search Fields table
+- [x] Step 1: Update web UI tests for a Fields filter input (by field key + friendly name) → run → expect FAIL
+- [x] Step 2: Update `apps/web/src/App.tsx` to add a filter input and apply it to the Fields (Snapshot A) table
+	- Case-insensitive substring match
+	- Should work whether we’re showing discovered `fields` (no ConfigurationId) or `configurationFields`
+	- Should not affect saved payloads (filter is purely a view concern)
+- [x] Step 3: Run `npm -w apps/web test` → expect PASS
+- [x] Step 4: Run `npm -w apps/web run typecheck` → expect PASS
+- [ ] Step 5: Commit (`feat(web): add field filter`)
+
 ## Task 8: Web UX adjustment — move Trends into a tab
 
 Follow `docs/plans/2026-02-17-trends-tab-web-ux.md`.
