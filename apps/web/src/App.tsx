@@ -29,6 +29,9 @@ export default function App() {
   const [fields, setFields] = useState<SnapshotField[]>([]);
   const [compareFields, setCompareFields] = useState<SnapshotField[]>([]);
 
+  const [workspaceTab, setWorkspaceTab] = useState<"configure" | "analysis">("configure");
+  const [analysisTab, setAnalysisTab] = useState<"diff" | "trends">("diff");
+
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffRows, setDiffRows] = useState<
     Array<{ fieldKey: string; aValue: string | null; bValue: string | null }>
@@ -414,6 +417,16 @@ export default function App() {
     }
   }
 
+  function switchToAnalysisDiff() {
+    setWorkspaceTab("analysis");
+    setAnalysisTab("diff");
+  }
+
+  function compareSnapshot(deviceSnapshotId: string) {
+    setCompareDeviceSnapshotId(deviceSnapshotId);
+    switchToAnalysisDiff();
+  }
+
   return (
     <div className="min-h-screen">
       <header className="border-b bg-background/80 backdrop-blur">
@@ -551,7 +564,7 @@ export default function App() {
                           variant="secondary"
                           size="sm"
                           aria-label={`Compare ${s.snapshotId}`}
-                          onClick={() => setCompareDeviceSnapshotId(s.deviceSnapshotId)}
+                          onClick={() => compareSnapshot(s.deviceSnapshotId)}
                           disabled={!selectedDeviceSnapshotId}
                         >
                           Compare
@@ -565,353 +578,461 @@ export default function App() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Fields (Snapshot A)</CardTitle>
-            <CardDescription>
-              View Snapshot A values and configure tracked fields + friendly names (per ConfigurationId).
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!selectedDeviceSnapshotId ? (
-              <p className="text-sm text-muted-foreground">Select a snapshot to view and configure fields.</p>
-            ) : fields.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No fields loaded yet.</p>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <span className="font-medium">ConfigurationId:</span>
-                  {configurationId ? (
-                    <Badge variant="outline" className="max-w-[30rem] truncate" title={configurationId}>
-                      {configurationId}
-                    </Badge>
+        <div className="space-y-4">
+          <div
+            role="tablist"
+            aria-label="Workspace"
+            className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2"
+          >
+            <button
+              id="workspace-configure-tab"
+              role="tab"
+              type="button"
+              aria-selected={workspaceTab === "configure"}
+              aria-controls="workspace-configure-panel"
+              onClick={() => setWorkspaceTab("configure")}
+              className={`inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                workspaceTab === "configure"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              Configure fields
+            </button>
+
+            <button
+              id="workspace-analysis-tab"
+              role="tab"
+              type="button"
+              aria-selected={workspaceTab === "analysis"}
+              aria-controls="workspace-analysis-panel"
+              onClick={() => setWorkspaceTab("analysis")}
+              className={`inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                workspaceTab === "analysis"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background hover:bg-accent hover:text-accent-foreground"
+              }`}
+            >
+              Analysis
+            </button>
+          </div>
+
+          {workspaceTab === "configure" ? (
+            <div
+              id="workspace-configure-panel"
+              role="tabpanel"
+              aria-labelledby="workspace-configure-tab"
+              className="space-y-4"
+            >
+              <Card>
+                <CardHeader>
+                  <CardTitle>Fields (Snapshot A)</CardTitle>
+                  <CardDescription>
+                    View Snapshot A values and configure tracked fields + friendly names (per ConfigurationId).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {!selectedDeviceSnapshotId ? (
+                    <p className="text-sm text-muted-foreground">Select a snapshot to view and configure fields.</p>
+                  ) : fields.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No fields loaded yet.</p>
                   ) : (
-                    <Badge variant="outline">(missing)</Badge>
-                  )}
-                  {!configurationId ? (
-                    <span className="text-xs text-muted-foreground">
-                      Cannot save tracked/friendly names without <span className="font-mono">root/ConfigurationId</span>.
-                    </span>
-                  ) : null}
-                </div>
+                    <>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="font-medium">ConfigurationId:</span>
+                        {configurationId ? (
+                          <Badge variant="outline" className="max-w-[30rem] truncate" title={configurationId}>
+                            {configurationId}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">(missing)</Badge>
+                        )}
+                        {!configurationId ? (
+                          <span className="text-xs text-muted-foreground">
+                            Cannot save tracked/friendly names without{" "}
+                            <span className="font-mono">root/ConfigurationId</span>.
+                          </span>
+                        ) : null}
+                      </div>
 
-                {configurationId && configurationFieldsLoading ? (
-                  <p className="text-sm text-muted-foreground">Loading tracked fields…</p>
-                ) : null}
+                      {configurationId && configurationFieldsLoading ? (
+                        <p className="text-sm text-muted-foreground">Loading tracked fields…</p>
+                      ) : null}
 
-                <Table aria-label="Fields (Snapshot A)">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[34%]">Field key</TableHead>
-                      <TableHead>Value (A)</TableHead>
-                      <TableHead className="w-[7rem]">Type</TableHead>
-                      <TableHead className="w-[9rem]">Tracked</TableHead>
-                      <TableHead className="w-[18rem]">Friendly name</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(configurationId ? (configurationFields as Array<SnapshotField | ConfigurationFieldRow>) : fields)
-                      .filter((row) => row.fieldKey !== "root/ConfigurationId")
-                      .map((row) => {
-                        const fieldKey = row.fieldKey;
-                        const snap = valueByFieldKey.get(fieldKey);
-                        const editable = Boolean(configurationId) && !configurationFieldsLoading;
-
-                        const tracked = isConfigurationFieldRow(row) ? row.tracked : false;
-                        const friendlyName = isConfigurationFieldRow(row) ? row.friendlyName : null;
-
-                        return (
-                          <TableRow key={fieldKey}>
-                            <TableCell className="font-mono text-xs">{fieldKey}</TableCell>
-                            <TableCell className="break-all">{snap?.valueText ?? ""}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{snap?.valueType ?? ""}</TableCell>
-                            <TableCell>
-                              <label className="flex items-center gap-2">
-                                <Checkbox
-                                  aria-label={`Track ${fieldKey}`}
-                                  checked={Boolean(tracked)}
-                                  disabled={!editable}
-                                  onChange={(e) => {
-                                    const checked = (e.target as HTMLInputElement).checked;
-                                    if (!configurationId) return;
-                                    setConfigurationFields((prev) =>
-                                      prev.map((p) =>
-                                        p.fieldKey === fieldKey ? { ...p, tracked: checked } : p
-                                      )
-                                    );
-                                  }}
-                                />
-                                <span className="text-xs text-muted-foreground">Track</span>
-                              </label>
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                aria-label={`Friendly name ${fieldKey}`}
-                                value={friendlyName ?? ""}
-                                placeholder="Optional"
-                                disabled={!editable}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (!configurationId) return;
-                                  setConfigurationFields((prev) =>
-                                    prev.map((p) =>
-                                      p.fieldKey === fieldKey ? { ...p, friendlyName: value } : p
-                                    )
-                                  );
-                                }}
-                              />
-                            </TableCell>
+                      <Table aria-label="Fields (Snapshot A)">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[34%]">Field key</TableHead>
+                            <TableHead>Value (A)</TableHead>
+                            <TableHead className="w-[7rem]">Type</TableHead>
+                            <TableHead className="w-[9rem]">Tracked</TableHead>
+                            <TableHead className="w-[18rem]">Friendly name</TableHead>
                           </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {(configurationId
+                            ? (configurationFields as Array<SnapshotField | ConfigurationFieldRow>)
+                            : fields
+                          )
+                            .filter((row) => row.fieldKey !== "root/ConfigurationId")
+                            .map((row) => {
+                              const fieldKey = row.fieldKey;
+                              const snap = valueByFieldKey.get(fieldKey);
+                              const editable = Boolean(configurationId) && !configurationFieldsLoading;
 
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => void saveTrackedFields()}
-                    disabled={!configurationId || configurationFieldsSaving || configurationFieldsLoading}
-                  >
-                    {configurationFieldsSaving ? "Saving…" : "Save tracked fields"}
-                  </Button>
-                </div>
+                              const tracked = isConfigurationFieldRow(row) ? row.tracked : false;
+                              const friendlyName = isConfigurationFieldRow(row) ? row.friendlyName : null;
 
-                {configurationFieldsSaveError ? (
-                  <p className="text-sm text-destructive" role="alert">
-                    {configurationFieldsSaveError}
-                  </p>
-                ) : null}
-              </>
-            )}
-          </CardContent>
-        </Card>
+                              return (
+                                <TableRow key={fieldKey}>
+                                  <TableCell className="font-mono text-xs">{fieldKey}</TableCell>
+                                  <TableCell className="break-all">{snap?.valueText ?? ""}</TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{snap?.valueType ?? ""}</TableCell>
+                                  <TableCell>
+                                    <label className="flex items-center gap-2">
+                                      <Checkbox
+                                        aria-label={`Track ${fieldKey}`}
+                                        checked={Boolean(tracked)}
+                                        disabled={!editable}
+                                        onChange={(e) => {
+                                          const checked = (e.target as HTMLInputElement).checked;
+                                          if (!configurationId) return;
+                                          setConfigurationFields((prev) =>
+                                            prev.map((p) =>
+                                              p.fieldKey === fieldKey ? { ...p, tracked: checked } : p
+                                            )
+                                          );
+                                        }}
+                                      />
+                                      <span className="text-xs text-muted-foreground">Track</span>
+                                    </label>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      aria-label={`Friendly name ${fieldKey}`}
+                                      value={friendlyName ?? ""}
+                                      placeholder="Optional"
+                                      disabled={!editable}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        if (!configurationId) return;
+                                        setConfigurationFields((prev) =>
+                                          prev.map((p) =>
+                                            p.fieldKey === fieldKey ? { ...p, friendlyName: value } : p
+                                          )
+                                        );
+                                      }}
+                                    />
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                        </TableBody>
+                      </Table>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Diff</CardTitle>
-            <CardDescription>Compare tracked field values between snapshot A and B.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!selectedDeviceSnapshotId || !compareDeviceSnapshotId ? (
-              <p className="text-sm text-muted-foreground">Select snapshot A and B to view a diff.</p>
-            ) : configurationId && compareConfigurationId && configurationId !== compareConfigurationId ? (
-              <p className="text-sm text-muted-foreground">
-                Cannot diff snapshots with different ConfigurationId ({configurationId} vs {compareConfigurationId}).
-              </p>
-            ) : trackedFieldKeys.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No tracked fields configured for this ConfigurationId. Mark fields as tracked above, then compare again.
-              </p>
-            ) : diffLoading ? (
-              <p className="text-sm text-muted-foreground">Loading diff…</p>
-            ) : diffRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No changes across tracked fields.</p>
-            ) : (
-              <Table aria-label="Diff">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Field</TableHead>
-                    <TableHead className="w-[30%]">A</TableHead>
-                    <TableHead className="w-[30%]">B</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {diffRows.map((r) => (
-                    <TableRow key={r.fieldKey}>
-                      <TableCell className="font-medium">{trackedFriendlyNameByKey.get(r.fieldKey) ?? r.fieldKey}</TableCell>
-                      <TableCell className="break-all font-mono text-xs">{r.aValue ?? ""}</TableCell>
-                      <TableCell className="break-all font-mono text-xs">{r.bValue ?? ""}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => void saveTrackedFields()}
+                          disabled={!configurationId || configurationFieldsSaving || configurationFieldsLoading}
+                        >
+                          {configurationFieldsSaving ? "Saving…" : "Save tracked fields"}
+                        </Button>
+                      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Trends</CardTitle>
-            <CardDescription>Build a time series for a tracked field across selected snapshots.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!selectedDeviceSnapshotId || !configurationId ? (
-              <p className="text-sm text-muted-foreground">
-                Select a snapshot with a ConfigurationId to enable trends.
-              </p>
-            ) : (
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <div className="text-sm font-medium">Include snapshots</div>
-
-                  {snapshots.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No snapshots available.</p>
-                  ) : (
-                    <div className="grid gap-2">
-                      {snapshots.map((s) => {
-                        const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
-                        return (
-                          <label
-                            key={s.deviceSnapshotId}
-                            className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
-                          >
-                            <Checkbox
-                              aria-label={`Include ${s.snapshotId}`}
-                              checked={checked}
-                              onChange={(e) => {
-                                const next = (e.target as HTMLInputElement).checked;
-                                setTrendSnapshotIds((prev) =>
-                                  next
-                                    ? [...prev, s.deviceSnapshotId]
-                                    : prev.filter((id) => id !== s.deviceSnapshotId)
-                                );
-                              }}
-                            />
-                            <span className="min-w-0 truncate">
-                              {s.snapshotId} <span className="text-xs text-muted-foreground">({s.timeStampUtc})</span>
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
+                      {configurationFieldsSaveError ? (
+                        <p className="text-sm text-destructive" role="alert">
+                          {configurationFieldsSaveError}
+                        </p>
+                      ) : null}
+                    </>
                   )}
-                </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <div
+              id="workspace-analysis-panel"
+              role="tabpanel"
+              aria-labelledby="workspace-analysis-tab"
+              className="space-y-4"
+            >
+              <div
+                role="tablist"
+                aria-label="Analysis"
+                className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2"
+              >
+                <button
+                  id="analysis-diff-tab"
+                  role="tab"
+                  type="button"
+                  aria-selected={analysisTab === "diff"}
+                  aria-controls="analysis-diff-panel"
+                  onClick={() => setAnalysisTab("diff")}
+                  className={`inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    analysisTab === "diff"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  Diff
+                </button>
 
-                <label className="grid gap-2 text-sm">
-                  <span className="font-medium">Trend field</span>
-                  <select
-                    aria-label="Trend field"
-                    value={trendFieldKey}
-                    onChange={(e) => setTrendFieldKey(e.target.value)}
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="">Select…</option>
-                    {trackedFieldKeys.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {trackedFieldKeys.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
-                  </p>
-                ) : null}
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => void showTrend()}
-                    disabled={trendLoading || trendSnapshotIds.length === 0 || !trendFieldKey}
-                  >
-                    {trendLoading ? "Loading…" : "Show trend"}
-                  </Button>
-                </div>
-
-                {trendRows.length > 0 ? (
-                  <div className="space-y-3">
-                    {numericTrendPoints.length >= 2 ? (
-                      (() => {
-                        const width = 640;
-                        const height = 200;
-                        const padX = 24;
-                        const padY = 24;
-
-                        const values = numericTrendPoints.map((p) => p.valueNumber as number);
-                        let minY = Math.min(...values);
-                        let maxY = Math.max(...values);
-                        if (minY === maxY) {
-                          minY -= 1;
-                          maxY += 1;
-                        }
-
-                        const plotW = width - padX * 2;
-                        const plotH = height - padY * 2;
-                        const stepX = numericTrendPoints.length <= 1 ? 0 : plotW / (numericTrendPoints.length - 1);
-
-                        const points = numericTrendPoints.map((p, idx) => {
-                          const x = padX + idx * stepX;
-                          const t = ((p.valueNumber as number) - minY) / (maxY - minY);
-                          const y = padY + (1 - t) * plotH;
-                          return { x, y };
-                        });
-
-                        const d = points
-                          .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`)
-                          .join(" ");
-
-                        return (
-                          <div className="rounded-md border bg-background p-3">
-                            <svg
-                              aria-label="Trend chart"
-                              role="img"
-                              viewBox={`0 0 ${width} ${height}`}
-                              className="h-48 w-full"
-                            >
-                              <title>Trend chart</title>
-                              <rect x="0" y="0" width={width} height={height} fill="transparent" />
-
-                              {/* grid */}
-                              <line
-                                x1={padX}
-                                y1={padY}
-                                x2={padX}
-                                y2={height - padY}
-                                stroke="currentColor"
-                                opacity="0.15"
-                              />
-                              <line
-                                x1={padX}
-                                y1={height - padY}
-                                x2={width - padX}
-                                y2={height - padY}
-                                stroke="currentColor"
-                                opacity="0.15"
-                              />
-
-                              {/* line */}
-                              <path d={d} fill="none" stroke="currentColor" strokeWidth="2" opacity="0.9" />
-                              {points.map((pt, idx) => (
-                                <circle
-                                  key={idx}
-                                  cx={pt.x}
-                                  cy={pt.y}
-                                  r="4"
-                                  fill="currentColor"
-                                  opacity="0.95"
-                                />
-                              ))}
-                            </svg>
-                          </div>
-                        );
-                      })()
-                    ) : null}
-
-                    <Table aria-label="Trend">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
-                          <TableHead>Value</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {trendRows.map((r) => (
-                          <TableRow key={r.timeStampUtc}>
-                            <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
-                            <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : null}
+                <button
+                  id="analysis-trends-tab"
+                  role="tab"
+                  type="button"
+                  aria-selected={analysisTab === "trends"}
+                  aria-controls="analysis-trends-panel"
+                  onClick={() => setAnalysisTab("trends")}
+                  className={`inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    analysisTab === "trends"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  Trends
+                </button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              {analysisTab === "diff" ? (
+                <div id="analysis-diff-panel" role="tabpanel" aria-labelledby="analysis-diff-tab">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Diff</CardTitle>
+                      <CardDescription>Compare tracked field values between snapshot A and B.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {!selectedDeviceSnapshotId || !compareDeviceSnapshotId ? (
+                        <p className="text-sm text-muted-foreground">Select snapshot A and B to view a diff.</p>
+                      ) : configurationId && compareConfigurationId && configurationId !== compareConfigurationId ? (
+                        <p className="text-sm text-muted-foreground">
+                          Cannot diff snapshots with different ConfigurationId ({configurationId} vs {compareConfigurationId}).
+                        </p>
+                      ) : trackedFieldKeys.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          No tracked fields configured for this ConfigurationId. Mark fields as tracked above, then compare again.
+                        </p>
+                      ) : diffLoading ? (
+                        <p className="text-sm text-muted-foreground">Loading diff…</p>
+                      ) : diffRows.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No changes across tracked fields.</p>
+                      ) : (
+                        <Table aria-label="Diff">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Field</TableHead>
+                              <TableHead className="w-[30%]">A</TableHead>
+                              <TableHead className="w-[30%]">B</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {diffRows.map((r) => (
+                              <TableRow key={r.fieldKey}>
+                                <TableCell className="font-medium">
+                                  {trackedFriendlyNameByKey.get(r.fieldKey) ?? r.fieldKey}
+                                </TableCell>
+                                <TableCell className="break-all font-mono text-xs">{r.aValue ?? ""}</TableCell>
+                                <TableCell className="break-all font-mono text-xs">{r.bValue ?? ""}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <div id="analysis-trends-panel" role="tabpanel" aria-labelledby="analysis-trends-tab">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Trends</CardTitle>
+                      <CardDescription>Build a time series for a tracked field across selected snapshots.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {!selectedDeviceSnapshotId || !configurationId ? (
+                        <p className="text-sm text-muted-foreground">
+                          Select a snapshot with a ConfigurationId to enable trends.
+                        </p>
+                      ) : (
+                        <div className="grid gap-4">
+                          <div className="grid gap-2">
+                            <div className="text-sm font-medium">Include snapshots</div>
+
+                            {snapshots.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No snapshots available.</p>
+                            ) : (
+                              <div className="grid gap-2">
+                                {snapshots.map((s) => {
+                                  const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
+                                  return (
+                                    <label
+                                      key={s.deviceSnapshotId}
+                                      className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+                                    >
+                                      <Checkbox
+                                        aria-label={`Include ${s.snapshotId}`}
+                                        checked={checked}
+                                        onChange={(e) => {
+                                          const next = (e.target as HTMLInputElement).checked;
+                                          setTrendSnapshotIds((prev) =>
+                                            next
+                                              ? [...prev, s.deviceSnapshotId]
+                                              : prev.filter((id) => id !== s.deviceSnapshotId)
+                                          );
+                                        }}
+                                      />
+                                      <span className="min-w-0 truncate">
+                                        {s.snapshotId}{" "}
+                                        <span className="text-xs text-muted-foreground">({s.timeStampUtc})</span>
+                                      </span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          <label className="grid gap-2 text-sm">
+                            <span className="font-medium">Trend field</span>
+                            <select
+                              aria-label="Trend field"
+                              value={trendFieldKey}
+                              onChange={(e) => setTrendFieldKey(e.target.value)}
+                              className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <option value="">Select…</option>
+                              {trackedFieldKeys.map((k) => (
+                                <option key={k} value={k}>
+                                  {k}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+
+                          {trackedFieldKeys.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                              To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
+                            </p>
+                          ) : null}
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              onClick={() => void showTrend()}
+                              disabled={trendLoading || trendSnapshotIds.length === 0 || !trendFieldKey}
+                            >
+                              {trendLoading ? "Loading…" : "Show trend"}
+                            </Button>
+                          </div>
+
+                          {trendRows.length > 0 ? (
+                            <div className="space-y-3">
+                              {numericTrendPoints.length >= 2 ? (
+                                (() => {
+                                  const width = 640;
+                                  const height = 200;
+                                  const padX = 24;
+                                  const padY = 24;
+
+                                  const values = numericTrendPoints.map((p) => p.valueNumber as number);
+                                  let minY = Math.min(...values);
+                                  let maxY = Math.max(...values);
+                                  if (minY === maxY) {
+                                    minY -= 1;
+                                    maxY += 1;
+                                  }
+
+                                  const plotW = width - padX * 2;
+                                  const plotH = height - padY * 2;
+                                  const stepX =
+                                    numericTrendPoints.length <= 1 ? 0 : plotW / (numericTrendPoints.length - 1);
+
+                                  const points = numericTrendPoints.map((p, idx) => {
+                                    const x = padX + idx * stepX;
+                                    const t = ((p.valueNumber as number) - minY) / (maxY - minY);
+                                    const y = padY + (1 - t) * plotH;
+                                    return { x, y };
+                                  });
+
+                                  const d = points
+                                    .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`)
+                                    .join(" ");
+
+                                  return (
+                                    <div className="rounded-md border bg-background p-3">
+                                      <svg
+                                        aria-label="Trend chart"
+                                        role="img"
+                                        viewBox={`0 0 ${width} ${height}`}
+                                        className="h-48 w-full"
+                                      >
+                                        <title>Trend chart</title>
+                                        <rect x="0" y="0" width={width} height={height} fill="transparent" />
+
+                                        {/* grid */}
+                                        <line
+                                          x1={padX}
+                                          y1={padY}
+                                          x2={padX}
+                                          y2={height - padY}
+                                          stroke="currentColor"
+                                          opacity="0.15"
+                                        />
+                                        <line
+                                          x1={padX}
+                                          y1={height - padY}
+                                          x2={width - padX}
+                                          y2={height - padY}
+                                          stroke="currentColor"
+                                          opacity="0.15"
+                                        />
+
+                                        {/* line */}
+                                        <path d={d} fill="none" stroke="currentColor" strokeWidth="2" opacity="0.9" />
+                                        {points.map((pt, idx) => (
+                                          <circle
+                                            key={idx}
+                                            cx={pt.x}
+                                            cy={pt.y}
+                                            r="4"
+                                            fill="currentColor"
+                                            opacity="0.95"
+                                          />
+                                        ))}
+                                      </svg>
+                                    </div>
+                                  );
+                                })()
+                              ) : null}
+
+                              <Table aria-label="Trend">
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
+                                    <TableHead>Value</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {trendRows.map((r) => (
+                                    <TableRow key={r.timeStampUtc}>
+                                      <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
+                                      <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
