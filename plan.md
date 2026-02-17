@@ -17,10 +17,10 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Commit
 
 ## Task 3: Flatten JSON
-- [ ] Write failing test
-- [ ] Run → FAIL
-- [ ] Implement `flattenSnapshotJson`
-- [ ] Run → PASS
+- [x] Write failing test
+- [x] Run → FAIL
+- [x] Implement `flattenSnapshotJson`
+- [x] Run → PASS
 - [ ] Commit
 
 ## Task 4+: API + UI
