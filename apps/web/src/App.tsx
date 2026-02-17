@@ -143,6 +143,7 @@ export default function App() {
       setCompareDeviceSnapshotId("");
       setFields([]);
       setCompareFields([]);
+      setFieldFilter("");
 
       setTrendSnapshotIds([]);
       setTrendFieldKey("");
@@ -162,6 +163,7 @@ export default function App() {
       setCompareDeviceSnapshotId("");
       setFields([]);
       setCompareFields([]);
+      setFieldFilter("");
 
       setTrendSnapshotIds([]);
       setTrendFieldKey("");
@@ -181,6 +183,7 @@ export default function App() {
       setCompareDeviceSnapshotId("");
       setFields([]);
       setCompareFields([]);
+      setFieldFilter("");
 
       setTrendSnapshotIds([]);
       setTrendFieldKey("");
@@ -203,6 +206,7 @@ export default function App() {
         setCompareDeviceSnapshotId("");
         setFields([]);
         setCompareFields([]);
+        setFieldFilter("");
 
         setTrendSnapshotIds([]);
         setTrendFieldKey("");
@@ -732,6 +736,7 @@ export default function App() {
                 variant={analysisTab === "diff" ? "default" : "secondary"}
                 size="sm"
                 role="tab"
+                id="analysis-tab-diff"
                 aria-selected={analysisTab === "diff"}
                 aria-controls="analysis-panel-diff"
                 onClick={() => setAnalysisTab("diff")}
@@ -744,6 +749,7 @@ export default function App() {
                 variant={analysisTab === "trends" ? "default" : "secondary"}
                 size="sm"
                 role="tab"
+                id="analysis-tab-trends"
                 aria-selected={analysisTab === "trends"}
                 aria-controls="analysis-panel-trends"
                 onClick={() => setAnalysisTab("trends")}
@@ -754,7 +760,13 @@ export default function App() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            <div id="analysis-panel-diff" role="tabpanel" hidden={analysisTab !== "diff"} className="space-y-4">
+            <div
+              id="analysis-panel-diff"
+              role="tabpanel"
+              aria-labelledby="analysis-tab-diff"
+              hidden={analysisTab !== "diff"}
+              className="space-y-4"
+            >
               <div className="space-y-1">
                 <CardTitle>Diff</CardTitle>
                 <CardDescription>Compare tracked field values between snapshot A and B.</CardDescription>
@@ -799,6 +811,7 @@ export default function App() {
             <div
               id="analysis-panel-trends"
               role="tabpanel"
+              aria-labelledby="analysis-tab-trends"
               hidden={analysisTab !== "trends"}
               className="space-y-4"
             >

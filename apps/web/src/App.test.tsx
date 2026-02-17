@@ -855,7 +855,7 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: /Diff/i })).toBeInTheDocument();
 
-    const diffTable = await screen.findByLabelText("Diff");
+    const diffTable = await screen.findByRole("table", { name: "Diff" });
     const w = within(diffTable);
     expect(w.getByRole("cell", { name: "FW" })).toBeInTheDocument();
     expect(w.getByRole("cell", { name: "A" })).toBeInTheDocument();
