@@ -30,8 +30,23 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /Selection/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Snapshots/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Fields \(Snapshot A\)/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Diff/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Trends/i })).toBeInTheDocument();
+
+    // Analysis tabs
+    const tabs = screen.getByRole("tablist", { name: /analysis/i });
+    const diffTab = within(tabs).getByRole("tab", { name: /diff/i });
+    const trendsTab = within(tabs).getByRole("tab", { name: /trends/i });
+
+    expect(diffTab).toHaveAttribute("aria-selected", "true");
+    expect(trendsTab).toHaveAttribute("aria-selected", "false");
+
+    // Diff should be visible by default, trends should not.
+    expect(screen.getByRole("heading", { name: /diff/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /trends/i })).not.toBeInTheDocument();
+
+    fireEvent.click(trendsTab);
+    expect(screen.getByRole("tab", { name: /trends/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /diff/i })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("heading", { name: /trends/i })).toBeInTheDocument();
   });
 
   it("loads and shows product numbers", async () => {
@@ -972,6 +987,9 @@ describe("App", () => {
     // Select snapshot A
     fireEvent.click(await screen.findByText(/snap-1/));
 
+    // Trends UI is under the Analysis tab.
+    fireEvent.click(screen.getByRole("tab", { name: /trends/i }));
+
     // Select snapshots to include in the trend
     fireEvent.click(await screen.findByLabelText("Include snap-1"));
     fireEvent.click(await screen.findByLabelText("Include snap-2"));
@@ -1115,6 +1133,9 @@ describe("App", () => {
 
     // Select snapshot A
     fireEvent.click(await screen.findByText(/snap-1/));
+
+    // Trends UI is under the Analysis tab.
+    fireEvent.click(screen.getByRole("tab", { name: /trends/i }));
 
     // Select snapshots to include in the trend
     fireEvent.click(await screen.findByLabelText("Include snap-1"));

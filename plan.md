@@ -84,9 +84,9 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 
 Follow `docs/plans/2026-02-17-trends-tab-web-ux.md`.
 
-- [ ] Step 1: Update web UI tests to expect an Analysis tablist (Diff default, Trends hidden by default)
-- [ ] Step 2: Run `npm -w apps/web test` → expect FAIL
-- [ ] Step 3: Update `apps/web/src/App.tsx` to render Diff/Trends under tabs (keep behavior)
-- [ ] Step 4: Run `npm -w apps/web test` → expect PASS
-- [ ] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
+- [x] Step 1: Update web UI tests to expect an Analysis tablist (Diff default, Trends hidden by default)
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Update `apps/web/src/App.tsx` to render Diff/Trends under tabs (keep behavior)
+- [x] Step 4: Run `npm -w apps/web test` → expect PASS
+- [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
 - [ ] Step 6: Commit (`feat(web): move trends into analysis tab`)

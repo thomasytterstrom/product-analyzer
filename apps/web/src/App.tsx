@@ -16,6 +16,8 @@ type ConfigurationFieldRow = {
   friendlyName: string | null;
 };
 
+type AnalysisTab = "diff" | "trends";
+
 export default function App() {
   const [productNumbers, setProductNumbers] = useState<string[]>([]);
   const [selectedProductNumber, setSelectedProductNumber] = useState<string>("");
@@ -40,6 +42,8 @@ export default function App() {
     []
   );
   const [trendLoading, setTrendLoading] = useState(false);
+
+  const [analysisTab, setAnalysisTab] = useState<AnalysisTab>("diff");
 
   const numericTrendPoints = trendRows
     .map((r) => {
@@ -716,228 +720,272 @@ export default function App() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Diff</CardTitle>
-            <CardDescription>Compare tracked field values between snapshot A and B.</CardDescription>
+          <CardHeader className="gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <CardTitle>Analysis</CardTitle>
+              <CardDescription>Diff and trends for tracked fields.</CardDescription>
+            </div>
+
+            <div role="tablist" aria-label="Analysis" className="flex gap-2">
+              <Button
+                type="button"
+                variant={analysisTab === "diff" ? "default" : "secondary"}
+                size="sm"
+                role="tab"
+                aria-selected={analysisTab === "diff"}
+                aria-controls="analysis-panel-diff"
+                onClick={() => setAnalysisTab("diff")}
+              >
+                Diff
+              </Button>
+
+              <Button
+                type="button"
+                variant={analysisTab === "trends" ? "default" : "secondary"}
+                size="sm"
+                role="tab"
+                aria-selected={analysisTab === "trends"}
+                aria-controls="analysis-panel-trends"
+                onClick={() => setAnalysisTab("trends")}
+              >
+                Trends
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {!selectedDeviceSnapshotId || !compareDeviceSnapshotId ? (
-              <p className="text-sm text-muted-foreground">Select snapshot A and B to view a diff.</p>
-            ) : configurationId && compareConfigurationId && configurationId !== compareConfigurationId ? (
-              <p className="text-sm text-muted-foreground">
-                Cannot diff snapshots with different ConfigurationId ({configurationId} vs {compareConfigurationId}).
-              </p>
-            ) : trackedFieldKeys.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No tracked fields configured for this ConfigurationId. Mark fields as tracked above, then compare again.
-              </p>
-            ) : diffLoading ? (
-              <p className="text-sm text-muted-foreground">Loading diff…</p>
-            ) : diffRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No changes across tracked fields.</p>
-            ) : (
-              <Table aria-label="Diff">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Field</TableHead>
-                    <TableHead className="w-[30%]">A</TableHead>
-                    <TableHead className="w-[30%]">B</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {diffRows.map((r) => (
-                    <TableRow key={r.fieldKey}>
-                      <TableCell className="font-medium">{trackedFriendlyNameByKey.get(r.fieldKey) ?? r.fieldKey}</TableCell>
-                      <TableCell className="break-all font-mono text-xs">{r.aValue ?? ""}</TableCell>
-                      <TableCell className="break-all font-mono text-xs">{r.bValue ?? ""}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Trends</CardTitle>
-            <CardDescription>Build a time series for a tracked field across selected snapshots.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!selectedDeviceSnapshotId || !configurationId ? (
-              <p className="text-sm text-muted-foreground">
-                Select a snapshot with a ConfigurationId to enable trends.
-              </p>
-            ) : (
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <div className="text-sm font-medium">Include snapshots</div>
-
-                  {snapshots.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No snapshots available.</p>
-                  ) : (
-                    <div className="grid gap-2">
-                      {snapshots.map((s) => {
-                        const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
-                        return (
-                          <label
-                            key={s.deviceSnapshotId}
-                            className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
-                          >
-                            <Checkbox
-                              aria-label={`Include ${s.snapshotId}`}
-                              checked={checked}
-                              onChange={(e) => {
-                                const next = (e.target as HTMLInputElement).checked;
-                                setTrendSnapshotIds((prev) =>
-                                  next
-                                    ? [...prev, s.deviceSnapshotId]
-                                    : prev.filter((id) => id !== s.deviceSnapshotId)
-                                );
-                              }}
-                            />
-                            <span className="min-w-0 truncate">
-                              {s.snapshotId} <span className="text-xs text-muted-foreground">({s.timeStampUtc})</span>
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <label className="grid gap-2 text-sm">
-                  <span className="font-medium">Trend field</span>
-                  <select
-                    aria-label="Trend field"
-                    value={trendFieldKey}
-                    onChange={(e) => setTrendFieldKey(e.target.value)}
-                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="">Select…</option>
-                    {trackedFieldKeys.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {trackedFieldKeys.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
-                  </p>
-                ) : null}
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => void showTrend()}
-                    disabled={trendLoading || trendSnapshotIds.length === 0 || !trendFieldKey}
-                  >
-                    {trendLoading ? "Loading…" : "Show trend"}
-                  </Button>
-                </div>
-
-                {trendRows.length > 0 ? (
-                  <div className="space-y-3">
-                    {numericTrendPoints.length >= 2 ? (
-                      (() => {
-                        const width = 640;
-                        const height = 200;
-                        const padX = 24;
-                        const padY = 24;
-
-                        const values = numericTrendPoints.map((p) => p.valueNumber as number);
-                        let minY = Math.min(...values);
-                        let maxY = Math.max(...values);
-                        if (minY === maxY) {
-                          minY -= 1;
-                          maxY += 1;
-                        }
-
-                        const plotW = width - padX * 2;
-                        const plotH = height - padY * 2;
-                        const stepX = numericTrendPoints.length <= 1 ? 0 : plotW / (numericTrendPoints.length - 1);
-
-                        const points = numericTrendPoints.map((p, idx) => {
-                          const x = padX + idx * stepX;
-                          const t = ((p.valueNumber as number) - minY) / (maxY - minY);
-                          const y = padY + (1 - t) * plotH;
-                          return { x, y };
-                        });
-
-                        const d = points
-                          .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`)
-                          .join(" ");
-
-                        return (
-                          <div className="rounded-md border bg-background p-3">
-                            <svg
-                              aria-label="Trend chart"
-                              role="img"
-                              viewBox={`0 0 ${width} ${height}`}
-                              className="h-48 w-full"
-                            >
-                              <title>Trend chart</title>
-                              <rect x="0" y="0" width={width} height={height} fill="transparent" />
-
-                              {/* grid */}
-                              <line
-                                x1={padX}
-                                y1={padY}
-                                x2={padX}
-                                y2={height - padY}
-                                stroke="currentColor"
-                                opacity="0.15"
-                              />
-                              <line
-                                x1={padX}
-                                y1={height - padY}
-                                x2={width - padX}
-                                y2={height - padY}
-                                stroke="currentColor"
-                                opacity="0.15"
-                              />
-
-                              {/* line */}
-                              <path d={d} fill="none" stroke="currentColor" strokeWidth="2" opacity="0.9" />
-                              {points.map((pt, idx) => (
-                                <circle
-                                  key={idx}
-                                  cx={pt.x}
-                                  cy={pt.y}
-                                  r="4"
-                                  fill="currentColor"
-                                  opacity="0.95"
-                                />
-                              ))}
-                            </svg>
-                          </div>
-                        );
-                      })()
-                    ) : null}
-
-                    <Table aria-label="Trend">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
-                          <TableHead>Value</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {trendRows.map((r) => (
-                          <TableRow key={r.timeStampUtc}>
-                            <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
-                            <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : null}
+          <CardContent className="space-y-6">
+            <div id="analysis-panel-diff" role="tabpanel" hidden={analysisTab !== "diff"} className="space-y-4">
+              <div className="space-y-1">
+                <CardTitle>Diff</CardTitle>
+                <CardDescription>Compare tracked field values between snapshot A and B.</CardDescription>
               </div>
-            )}
+
+              {!selectedDeviceSnapshotId || !compareDeviceSnapshotId ? (
+                <p className="text-sm text-muted-foreground">Select snapshot A and B to view a diff.</p>
+              ) : configurationId && compareConfigurationId && configurationId !== compareConfigurationId ? (
+                <p className="text-sm text-muted-foreground">
+                  Cannot diff snapshots with different ConfigurationId ({configurationId} vs {compareConfigurationId}).
+                </p>
+              ) : trackedFieldKeys.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No tracked fields configured for this ConfigurationId. Mark fields as tracked above, then compare again.
+                </p>
+              ) : diffLoading ? (
+                <p className="text-sm text-muted-foreground">Loading diff…</p>
+              ) : diffRows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No changes across tracked fields.</p>
+              ) : (
+                <Table aria-label="Diff">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Field</TableHead>
+                      <TableHead className="w-[30%]">A</TableHead>
+                      <TableHead className="w-[30%]">B</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {diffRows.map((r) => (
+                      <TableRow key={r.fieldKey}>
+                        <TableCell className="font-medium">{trackedFriendlyNameByKey.get(r.fieldKey) ?? r.fieldKey}</TableCell>
+                        <TableCell className="break-all font-mono text-xs">{r.aValue ?? ""}</TableCell>
+                        <TableCell className="break-all font-mono text-xs">{r.bValue ?? ""}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+
+            <div
+              id="analysis-panel-trends"
+              role="tabpanel"
+              hidden={analysisTab !== "trends"}
+              className="space-y-4"
+            >
+              <div className="space-y-1">
+                <CardTitle>Trends</CardTitle>
+                <CardDescription>Build a time series for a tracked field across selected snapshots.</CardDescription>
+              </div>
+
+              {!selectedDeviceSnapshotId || !configurationId ? (
+                <p className="text-sm text-muted-foreground">
+                  Select a snapshot with a ConfigurationId to enable trends.
+                </p>
+              ) : (
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <div className="text-sm font-medium">Include snapshots</div>
+
+                    {snapshots.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No snapshots available.</p>
+                    ) : (
+                      <div className="grid gap-2">
+                        {snapshots.map((s) => {
+                          const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
+                          return (
+                            <label
+                              key={s.deviceSnapshotId}
+                              className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+                            >
+                              <Checkbox
+                                aria-label={`Include ${s.snapshotId}`}
+                                checked={checked}
+                                onChange={(e) => {
+                                  const next = (e.target as HTMLInputElement).checked;
+                                  setTrendSnapshotIds((prev) =>
+                                    next
+                                      ? [...prev, s.deviceSnapshotId]
+                                      : prev.filter((id) => id !== s.deviceSnapshotId)
+                                  );
+                                }}
+                              />
+                              <span className="min-w-0 truncate">
+                                {s.snapshotId}{" "}
+                                <span className="text-xs text-muted-foreground">({s.timeStampUtc})</span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-medium">Trend field</span>
+                    <select
+                      aria-label="Trend field"
+                      value={trendFieldKey}
+                      onChange={(e) => setTrendFieldKey(e.target.value)}
+                      className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <option value="">Select…</option>
+                      {trackedFieldKeys.map((k) => (
+                        <option key={k} value={k}>
+                          {k}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  {trackedFieldKeys.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
+                    </p>
+                  ) : null}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => void showTrend()}
+                      disabled={trendLoading || trendSnapshotIds.length === 0 || !trendFieldKey}
+                    >
+                      {trendLoading ? "Loading…" : "Show trend"}
+                    </Button>
+                  </div>
+
+                  {trendRows.length > 0 ? (
+                    <div className="space-y-3">
+                      {numericTrendPoints.length >= 2 ? (
+                        (() => {
+                          const width = 640;
+                          const height = 200;
+                          const padX = 24;
+                          const padY = 24;
+
+                          const values = numericTrendPoints.map((p) => p.valueNumber as number);
+                          let minY = Math.min(...values);
+                          let maxY = Math.max(...values);
+                          if (minY === maxY) {
+                            minY -= 1;
+                            maxY += 1;
+                          }
+
+                          const plotW = width - padX * 2;
+                          const plotH = height - padY * 2;
+                          const stepX =
+                            numericTrendPoints.length <= 1
+                              ? 0
+                              : plotW / (numericTrendPoints.length - 1);
+
+                          const points = numericTrendPoints.map((p, idx) => {
+                            const x = padX + idx * stepX;
+                            const t = ((p.valueNumber as number) - minY) / (maxY - minY);
+                            const y = padY + (1 - t) * plotH;
+                            return { x, y };
+                          });
+
+                          const d = points
+                            .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`)
+                            .join(" ");
+
+                          return (
+                            <div className="rounded-md border bg-background p-3">
+                              <svg
+                                aria-label="Trend chart"
+                                role="img"
+                                viewBox={`0 0 ${width} ${height}`}
+                                className="h-48 w-full"
+                              >
+                                <title>Trend chart</title>
+                                <rect x="0" y="0" width={width} height={height} fill="transparent" />
+
+                                {/* grid */}
+                                <line
+                                  x1={padX}
+                                  y1={padY}
+                                  x2={padX}
+                                  y2={height - padY}
+                                  stroke="currentColor"
+                                  opacity="0.15"
+                                />
+                                <line
+                                  x1={padX}
+                                  y1={height - padY}
+                                  x2={width - padX}
+                                  y2={height - padY}
+                                  stroke="currentColor"
+                                  opacity="0.15"
+                                />
+
+                                {/* line */}
+                                <path d={d} fill="none" stroke="currentColor" strokeWidth="2" opacity="0.9" />
+                                {points.map((pt, idx) => (
+                                  <circle
+                                    key={idx}
+                                    cx={pt.x}
+                                    cy={pt.y}
+                                    r="4"
+                                    fill="currentColor"
+                                    opacity="0.95"
+                                  />
+                                ))}
+                              </svg>
+                            </div>
+                          );
+                        })()
+                      ) : null}
+
+                      <Table aria-label="Trend">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
+                            <TableHead>Value</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {trendRows.map((r) => (
+                            <TableRow key={r.timeStampUtc}>
+                              <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
+                              <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </main>
