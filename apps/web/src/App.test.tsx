@@ -24,7 +24,9 @@ describe("App", () => {
 
     // Landmarks
     expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByRole("main")).toBeInTheDocument();
+    const main = screen.getByRole("main");
+    expect(main).toBeInTheDocument();
+    expect(main).toHaveClass("max-w-7xl");
 
     // Key sections should exist even before any data loads.
     expect(screen.getByRole("heading", { name: /Selection/i })).toBeInTheDocument();
@@ -328,7 +330,9 @@ describe("App", () => {
 
     expect(tableWithin.queryByRole("columnheader", { name: /type/i })).not.toBeInTheDocument();
     expect(tableWithin.getByRole("columnheader", { name: /tracked/i })).toBeInTheDocument();
-    expect(tableWithin.getByRole("columnheader", { name: /friendly name/i })).toBeInTheDocument();
+    const friendlyHeader = tableWithin.getByRole("columnheader", { name: /friendly name/i });
+    expect(friendlyHeader).toBeInTheDocument();
+    expect(friendlyHeader).toHaveClass("w-[24rem]");
   });
 
   it("derives ConfigurationId and persists tracked toggle immediately when clicking Track", async () => {

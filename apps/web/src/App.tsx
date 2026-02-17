@@ -503,7 +503,7 @@ export default function App() {
   return (
     <div className="min-h-screen">
       <header className="border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-start justify-between gap-4 px-4 py-6">
+        <div className="mx-auto flex max-w-7xl items-start justify-between gap-4 px-4 py-6">
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold leading-none tracking-tight">Product Analyzer</h1>
             <p className="text-sm text-muted-foreground">
@@ -535,7 +535,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6">
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -748,7 +748,7 @@ export default function App() {
                             <TableHead className="w-[34%]">Field key</TableHead>
                             <TableHead className="w-[45%]">Value (A)</TableHead>
                             <TableHead className="w-[9rem]">Tracked</TableHead>
-                            <TableHead className="w-[18rem]">Friendly name</TableHead>
+                            <TableHead className="w-[24rem]">Friendly name</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>

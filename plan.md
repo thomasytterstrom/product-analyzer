@@ -91,6 +91,16 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 
 - [x] Step 6: Commit already done in `d955c37` (`chore(web): improve fields table a11y and save errors`)
 
+- [x] Step 7: Update web UI tests for wider Friendly name column + slightly wider page container
+	- Friendly name column should be larger
+	- Increase overall content width (container max width)
+- [x] Step 8: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 9: Update `apps/web/src/App.tsx` to:
+	- Increase Friendly name column width
+	- Increase container max width (e.g., max-w-7xl)
+- [x] Step 10: Run `npm -w apps/web test` → expect PASS
+- [x] Step 11: Run `npm -w apps/web run typecheck` → expect PASS
+
 ## Task 9: Web UX adjustment — move Trends into a tab
 
 Follow `docs/plans/2026-02-17-trends-tab-web-ux.md`.
