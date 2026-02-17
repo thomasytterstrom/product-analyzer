@@ -4,7 +4,7 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "concurrently -n api,web \"npm -w apps/api run dev\" \"npm -w apps/web run dev\"",
-    "test": "npm -ws run test"
+    "test": "npm --workspaces --if-present run test"
   },
   "devDependencies": {
     "concurrently": "^9.0.0"
