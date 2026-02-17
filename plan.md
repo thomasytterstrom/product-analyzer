@@ -78,7 +78,7 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 	- Should not affect saved payloads (filter is purely a view concern)
 - [x] Step 3: Run `npm -w apps/web test` → expect PASS
 - [x] Step 4: Run `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 5: Commit (`feat(web): add field filter`)
+- [x] Step 5: Commit (`feat(web): add field filter`)
 
 ## Task 8: Web UX adjustment — move Trends into a tab
 
