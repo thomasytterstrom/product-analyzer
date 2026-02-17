@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { createApiClient } from "./lib/api";
 import { Badge } from "./components/ui/badge";
@@ -14,6 +14,18 @@ type ConfigurationFieldRow = {
   fieldKey: string;
   tracked: boolean;
   friendlyName: string | null;
+};
+
+type TimeSeriesPoint = {
+  deviceSnapshotId: string;
+  timeStampUtc: string;
+  valueText: string | null;
+  valueType: string | null;
+};
+
+type TimeSeriesSeries = {
+  fieldKey: string;
+  points: TimeSeriesPoint[];
 };
 
 export default function App() {
@@ -38,23 +50,34 @@ export default function App() {
   >([]);
 
   const [trendSnapshotIds, setTrendSnapshotIds] = useState<string[]>([]);
-  const [trendFieldKey, setTrendFieldKey] = useState<string>("");
+  const [trendFieldKeys, setTrendFieldKeys] = useState<string[]>([]);
   const [trendRows, setTrendRows] = useState<Array<{ timeStampUtc: string; valueText: string | null }>>(
     []
   );
+  const [trendSeries, setTrendSeries] = useState<TimeSeriesSeries[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
 
-  const numericTrendPoints = trendRows
-    .map((r) => {
-      const raw = r.valueText ?? "";
-      const n = Number.parseFloat(String(raw));
-      return {
-        timeStampUtc: r.timeStampUtc,
-        valueText: r.valueText,
-        valueNumber: Number.isFinite(n) ? n : null
-      };
+  const trendFieldKeysRef = useRef<string[]>([]);
+
+  const numericTrendSeries = trendSeries
+    .map((s) => {
+      const points = [...(s.points ?? [])]
+        .map((p) => {
+          const raw = p.valueText ?? "";
+          const n = Number.parseFloat(String(raw));
+          return {
+            deviceSnapshotId: p.deviceSnapshotId,
+            timeStampUtc: p.timeStampUtc,
+            valueText: p.valueText,
+            valueNumber: Number.isFinite(n) ? n : null
+          };
+        })
+        .filter((p) => p.valueNumber !== null)
+        .sort((a, b) => a.timeStampUtc.localeCompare(b.timeStampUtc));
+
+      return { fieldKey: s.fieldKey, points };
     })
-    .filter((p) => p.valueNumber !== null);
+    .filter((s) => s.points.length >= 2);
 
   const configurationId =
     fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
@@ -145,8 +168,10 @@ export default function App() {
       setFieldFilter("");
 
       setTrendSnapshotIds([]);
-      setTrendFieldKey("");
+      setTrendFieldKeys([]);
+      trendFieldKeysRef.current = [];
       setTrendRows([]);
+      setTrendSeries([]);
       setTrendLoading(false);
       return;
     }
@@ -165,8 +190,10 @@ export default function App() {
       setFieldFilter("");
 
       setTrendSnapshotIds([]);
-      setTrendFieldKey("");
+      setTrendFieldKeys([]);
+      trendFieldKeysRef.current = [];
       setTrendRows([]);
+      setTrendSeries([]);
       setTrendLoading(false);
     });
 
@@ -185,8 +212,10 @@ export default function App() {
       setFieldFilter("");
 
       setTrendSnapshotIds([]);
-      setTrendFieldKey("");
+      setTrendFieldKeys([]);
+      trendFieldKeysRef.current = [];
       setTrendRows([]);
+      setTrendSeries([]);
       setTrendLoading(false);
       return;
     }
@@ -208,8 +237,10 @@ export default function App() {
         setFieldFilter("");
 
         setTrendSnapshotIds([]);
-        setTrendFieldKey("");
+        setTrendFieldKeys([]);
+        trendFieldKeysRef.current = [];
         setTrendRows([]);
+        setTrendSeries([]);
         setTrendLoading(false);
       });
 
@@ -333,7 +364,8 @@ export default function App() {
   ]);
 
   async function showTrend() {
-    if (!trendFieldKey) return;
+    const fieldKeys = trendFieldKeysRef.current.length > 0 ? trendFieldKeysRef.current : trendFieldKeys;
+    if (fieldKeys.length === 0) return;
     if (trendSnapshotIds.length === 0) return;
     if (!selectedProductNumber || !selectedSerialNumber) return;
 
@@ -344,17 +376,27 @@ export default function App() {
         productNumber: selectedProductNumber,
         serialNumber: selectedSerialNumber,
         snapshotIds: trendSnapshotIds,
-        fieldKeys: [trendFieldKey]
+        fieldKeys
       });
 
-      const first = series[0];
-      const points = (first?.points ?? []).map((p) => ({
-        timeStampUtc: p.timeStampUtc,
-        valueText: p.valueText
+      const normalized = series.map((s) => ({
+        fieldKey: s.fieldKey,
+        points: [...s.points]
+          .map((p) => ({
+            deviceSnapshotId: p.deviceSnapshotId,
+            timeStampUtc: p.timeStampUtc,
+            valueText: p.valueText,
+            valueType: p.valueType
+          }))
+          .sort((a, b) => a.timeStampUtc.localeCompare(b.timeStampUtc))
       }));
 
-      points.sort((a, b) => a.timeStampUtc.localeCompare(b.timeStampUtc));
-      setTrendRows(points);
+      setTrendSeries(normalized);
+
+      const first = normalized[0];
+      setTrendRows(
+        (first?.points ?? []).map((p) => ({ timeStampUtc: p.timeStampUtc, valueText: p.valueText }))
+      );
     } finally {
       setTrendLoading(false);
     }
@@ -694,8 +736,7 @@ export default function App() {
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-[34%]">Field key</TableHead>
-                            <TableHead>Value (A)</TableHead>
-                            <TableHead className="w-[7rem]">Type</TableHead>
+                            <TableHead className="w-[45%]">Value (A)</TableHead>
                             <TableHead className="w-[9rem]">Tracked</TableHead>
                             <TableHead className="w-[18rem]">Friendly name</TableHead>
                           </TableRow>
@@ -719,7 +760,6 @@ export default function App() {
                                 <TableRow key={fieldKey}>
                                   <TableCell className="font-mono text-xs">{fieldKey}</TableCell>
                                   <TableCell className="break-all">{snap?.valueText ?? ""}</TableCell>
-                                  <TableCell className="text-xs text-muted-foreground">{snap?.valueType ?? ""}</TableCell>
                                   <TableCell>
                                     <label className="flex items-center gap-2">
                                       <Checkbox
@@ -729,11 +769,34 @@ export default function App() {
                                         onChange={(e) => {
                                           const checked = (e.target as HTMLInputElement).checked;
                                           if (!configurationId) return;
+
+                                          // Update local state immediately.
                                           setConfigurationFields((prev) =>
                                             prev.map((p) =>
                                               p.fieldKey === fieldKey ? { ...p, tracked: checked } : p
                                             )
                                           );
+
+                                          // Persist immediately (single-row update).
+                                          const api = createApiClient({ baseUrl: "" });
+                                          void api
+                                            .saveConfigurationFields(configurationId, [
+                                              {
+                                                fieldKey,
+                                                tracked: checked,
+                                                friendlyName: friendlyName ?? null
+                                              }
+                                            ])
+                                            .then((rows) => {
+                                              setConfigurationFields((prev) => {
+                                                const byKey = new Map(prev.map((p) => [p.fieldKey, p] as const));
+                                                for (const r of rows) byKey.set(r.fieldKey, r);
+                                                return [...byKey.values()].sort((a, b) => a.fieldKey.localeCompare(b.fieldKey));
+                                              });
+                                            })
+                                            .catch((err) => {
+                                              console.error("Failed to persist tracked toggle", err);
+                                            });
                                         }}
                                       />
                                       <span className="text-xs text-muted-foreground">Track</span>
@@ -925,135 +988,189 @@ export default function App() {
                             )}
                           </div>
 
-                          <label className="grid gap-2 text-sm">
-                            <span className="font-medium">Trend field</span>
-                            <select
-                              aria-label="Trend field"
-                              value={trendFieldKey}
-                              onChange={(e) => setTrendFieldKey(e.target.value)}
-                              className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <option value="">Select…</option>
-                              {trackedFieldKeys.map((k) => (
-                                <option key={k} value={k}>
-                                  {k}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
+                          <div className="grid gap-2">
+                            <div className="text-sm font-medium">Trend fields</div>
 
-                          {trackedFieldKeys.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                              To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
-                            </p>
-                          ) : null}
+                            {trackedFieldKeys.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">
+                                To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
+                              </p>
+                            ) : (
+                              <div className="grid gap-2">
+                                {trackedFieldKeys.map((k) => {
+                                  const checked = trendFieldKeys.includes(k);
+                                  const label = trackedFriendlyNameByKey.get(k) ?? k;
+
+                                  return (
+                                    <label
+                                      key={k}
+                                      className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+                                    >
+                                      <Checkbox
+                                        aria-label={`Trend ${k}`}
+                                        checked={checked}
+                                        onChange={(e) => {
+                                          const next = (e.target as HTMLInputElement).checked;
+                                          setTrendFieldKeys((prev) => {
+                                            const updated = next ? [...prev, k] : prev.filter((x) => x !== k);
+                                            trendFieldKeysRef.current = updated;
+                                            return updated;
+                                          });
+                                        }}
+                                      />
+                                      <span className="min-w-0 truncate">{label}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
 
                           <div className="flex flex-wrap gap-2">
                             <Button
                               type="button"
                               onClick={() => void showTrend()}
-                              disabled={trendLoading || trendSnapshotIds.length === 0 || !trendFieldKey}
+                              disabled={trendLoading || trendSnapshotIds.length === 0 || trendFieldKeys.length === 0}
                             >
                               {trendLoading ? "Loading…" : "Show trend"}
                             </Button>
                           </div>
 
-                          {trendRows.length > 0 ? (
+                          {trendSeries.length > 0 ? (
                             <div className="space-y-3">
-                              {numericTrendPoints.length >= 2 ? (
-                                (() => {
-                                  const width = 640;
-                                  const height = 200;
-                                  const padX = 24;
-                                  const padY = 24;
+                              {numericTrendSeries.length >= 1
+                                ? (() => {
+                                    const width = 640;
+                                    const height = 200;
+                                    const padX = 24;
+                                    const padY = 24;
 
-                                  const values = numericTrendPoints.map((p) => p.valueNumber as number);
-                                  let minY = Math.min(...values);
-                                  let maxY = Math.max(...values);
-                                  if (minY === maxY) {
-                                    minY -= 1;
-                                    maxY += 1;
-                                  }
+                                    const values = numericTrendSeries.flatMap((s) =>
+                                      s.points.map((p) => p.valueNumber as number)
+                                    );
+                                    let minY = Math.min(...values);
+                                    let maxY = Math.max(...values);
+                                    if (minY === maxY) {
+                                      minY -= 1;
+                                      maxY += 1;
+                                    }
 
-                                  const plotW = width - padX * 2;
-                                  const plotH = height - padY * 2;
-                                  const stepX =
-                                    numericTrendPoints.length <= 1 ? 0 : plotW / (numericTrendPoints.length - 1);
+                                    const plotW = width - padX * 2;
+                                    const plotH = height - padY * 2;
+                                    const xCount = Math.max(...numericTrendSeries.map((s) => s.points.length));
+                                    const stepX = xCount <= 1 ? 0 : plotW / (xCount - 1);
 
-                                  const points = numericTrendPoints.map((p, idx) => {
-                                    const x = padX + idx * stepX;
-                                    const t = ((p.valueNumber as number) - minY) / (maxY - minY);
-                                    const y = padY + (1 - t) * plotH;
-                                    return { x, y };
-                                  });
+                                    const palette = [
+                                      "currentColor",
+                                      "#0ea5e9",
+                                      "#a855f7",
+                                      "#f97316",
+                                      "#22c55e"
+                                    ];
 
-                                  const d = points
-                                    .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`)
-                                    .join(" ");
+                                    return (
+                                      <div className="rounded-md border bg-background p-3">
+                                        <svg
+                                          aria-label="Trend chart"
+                                          role="img"
+                                          viewBox={`0 0 ${width} ${height}`}
+                                          className="h-48 w-full"
+                                        >
+                                          <title>Trend chart</title>
+                                          <rect x="0" y="0" width={width} height={height} fill="transparent" />
 
-                                  return (
-                                    <div className="rounded-md border bg-background p-3">
-                                      <svg
-                                        aria-label="Trend chart"
-                                        role="img"
-                                        viewBox={`0 0 ${width} ${height}`}
-                                        className="h-48 w-full"
-                                      >
-                                        <title>Trend chart</title>
-                                        <rect x="0" y="0" width={width} height={height} fill="transparent" />
-
-                                        {/* grid */}
-                                        <line
-                                          x1={padX}
-                                          y1={padY}
-                                          x2={padX}
-                                          y2={height - padY}
-                                          stroke="currentColor"
-                                          opacity="0.15"
-                                        />
-                                        <line
-                                          x1={padX}
-                                          y1={height - padY}
-                                          x2={width - padX}
-                                          y2={height - padY}
-                                          stroke="currentColor"
-                                          opacity="0.15"
-                                        />
-
-                                        {/* line */}
-                                        <path d={d} fill="none" stroke="currentColor" strokeWidth="2" opacity="0.9" />
-                                        {points.map((pt, idx) => (
-                                          <circle
-                                            key={idx}
-                                            cx={pt.x}
-                                            cy={pt.y}
-                                            r="4"
-                                            fill="currentColor"
-                                            opacity="0.95"
+                                          {/* grid */}
+                                          <line
+                                            x1={padX}
+                                            y1={padY}
+                                            x2={padX}
+                                            y2={height - padY}
+                                            stroke="currentColor"
+                                            opacity="0.15"
                                           />
-                                        ))}
-                                      </svg>
-                                    </div>
-                                  );
-                                })()
-                              ) : null}
+                                          <line
+                                            x1={padX}
+                                            y1={height - padY}
+                                            x2={width - padX}
+                                            y2={height - padY}
+                                            stroke="currentColor"
+                                            opacity="0.15"
+                                          />
 
-                              <Table aria-label="Trend">
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
-                                    <TableHead>Value</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {trendRows.map((r) => (
-                                    <TableRow key={r.timeStampUtc}>
-                                      <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
-                                      <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
+                                          {/* lines */}
+                                          {numericTrendSeries.map((series, sIdx) => {
+                                            const stroke = palette[sIdx % palette.length];
+                                            const pts = series.points.map((p, idx) => {
+                                              const x = padX + idx * stepX;
+                                              const t = ((p.valueNumber as number) - minY) / (maxY - minY);
+                                              const y = padY + (1 - t) * plotH;
+                                              return { x, y };
+                                            });
+
+                                            const d = pts
+                                              .map(
+                                                (pt, i) =>
+                                                  `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`
+                                              )
+                                              .join(" ");
+
+                                            return (
+                                              <g key={series.fieldKey}>
+                                                <path
+                                                  d={d}
+                                                  fill="none"
+                                                  stroke={stroke}
+                                                  strokeWidth="2"
+                                                  opacity="0.9"
+                                                />
+                                                {pts.map((pt, idx) => (
+                                                  <circle
+                                                    key={idx}
+                                                    cx={pt.x}
+                                                    cy={pt.y}
+                                                    r="4"
+                                                    fill={stroke}
+                                                    opacity="0.95"
+                                                  />
+                                                ))}
+                                              </g>
+                                            );
+                                          })}
+                                        </svg>
+                                      </div>
+                                    );
+                                  })()
+                                : null}
+
+                              <ul aria-label="Trend series" role="list" className="flex flex-wrap gap-2 text-sm">
+                                {trendSeries.map((s) => {
+                                  const label = trackedFriendlyNameByKey.get(s.fieldKey) ?? s.fieldKey;
+                                  return (
+                                    <li key={s.fieldKey} className="rounded-md border bg-muted/30 px-2 py-1">
+                                      {label}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+
+                              {trendRows.length > 0 ? (
+                                <Table aria-label="Trend">
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
+                                      <TableHead>Value</TableHead>
                                     </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {trendRows.map((r) => (
+                                      <TableRow key={r.timeStampUtc}>
+                                        <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
+                                        <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
