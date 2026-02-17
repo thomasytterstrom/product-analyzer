@@ -19,7 +19,7 @@ export default function App() {
     fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
 
   const [configurationFields, setConfigurationFields] = useState<
-    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName?: string | null }>
+    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName: string | null }>
   >([]);
   const [configurationFieldsLoading, setConfigurationFieldsLoading] = useState(false);
   const [configurationFieldsSaving, setConfigurationFieldsSaving] = useState(false);
@@ -110,7 +110,7 @@ export default function App() {
               ? null
               : f.friendlyName.trim().length === 0
                 ? null
-                : f.friendlyName
+                : f.friendlyName.trim()
         }))
       );
       setConfigurationFields(updated);

@@ -10,13 +10,13 @@ export type ApiClient = {
   ): Promise<Array<{ fieldKey: string; valueText: string; valueType: string }>>;
 
   getConfigurationFields(configurationId: string): Promise<
-    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName?: string | null }>
+    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName: string | null }>
   >;
   saveConfigurationFields(
     configurationId: string,
     fields: Array<{ fieldKey: string; tracked: boolean; friendlyName?: string | null }>
   ): Promise<
-    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName?: string | null }>
+    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName: string | null }>
   >;
 };
 
@@ -85,7 +85,7 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         configurationId: string;
         fieldKey: string;
         tracked: boolean;
-        friendlyName?: string | null;
+        friendlyName: string | null;
       }>;
     },
 
@@ -108,7 +108,7 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         configurationId: string;
         fieldKey: string;
         tracked: boolean;
-        friendlyName?: string | null;
+        friendlyName: string | null;
       }>;
     }
   };
