@@ -24,6 +24,6 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Commit
 
 ## Task 4+: API + UI
-- [ ] DB access modules
+- [x] DB access modules
 - [ ] Fastify server + endpoints
 - [ ] Web UI
