@@ -38,10 +38,6 @@ export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
     "SELECT Id as deviceSnapshotId, SnapshotId as snapshotId, TimeStampUtc as timeStampUtc FROM DeviceSnapshot WHERE ProductNumber = ? AND SerialNumber = ? ORDER BY TimeStampUtc DESC"
   );
 
-  const getSnapshotJsonStmt = db.prepare(
-    "SELECT Json as json FROM DeviceSnapshotJson WHERE DeviceSnapshotId = ?"
-  );
-
   return {
     listProductNumbers() {
       return listProductNumbersStmt
@@ -70,6 +66,12 @@ export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
     },
 
     getSnapshotJson({ deviceSnapshotId }) {
+      // Lazily prepare so callers can use other methods even if DeviceSnapshotJson
+      // isn't present (e.g., tests seeding minimal schema).
+      const getSnapshotJsonStmt = db.prepare(
+        "SELECT Json as json FROM DeviceSnapshotJson WHERE DeviceSnapshotId = ?"
+      );
+
       const row = getSnapshotJsonStmt.get(deviceSnapshotId) as { json?: unknown } | undefined;
       if (!row || typeof row.json !== "string") {
         throw new Error(`Snapshot JSON not found for DeviceSnapshotId=${deviceSnapshotId}`);
