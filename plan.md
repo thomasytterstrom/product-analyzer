@@ -33,5 +33,5 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 	- [x] Web UI: show snapshot fields (parameter discovery)
 	- [x] Web UI: tracked fields editor (per ConfigurationId)
 	- [x] Code review: tracked-fields editor contract alignment
-	- [ ] Web UI: diff two snapshots
+	- [x] Web UI: diff two snapshots
 	- [ ] Web UI: trends/graphs across snapshots
