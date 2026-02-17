@@ -68,4 +68,4 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 	- Editing/saving tracked/friendly is disabled when ConfigurationId is missing
 - [x] Step 3: Run `npm -w apps/web test` → expect PASS
 - [x] Step 4: Run `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 5: Commit (`feat(web): combine field discovery and friendly names`)
+- [x] Step 5: Commit (`feat(web): combine field discovery and friendly names`)
