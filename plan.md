@@ -1,0 +1,29 @@
+# plan.md — Product Analyzer (execution)
+
+Follow `docs/plans/2026-02-17-product-analyzer.md`.
+
+## Task 1: Workspace + monorepo scaffolding
+- [x] Step 1: Add failing smoke test (`apps/api/src/smoke.test.ts`)
+- [x] Step 2: Run `npm test` → expect FAIL
+- [x] Step 3: Add monorepo scripts + minimal workspaces
+- [x] Step 4: Run `npm test` → expect PASS
+- [x] Step 5: Commit
+
+## Task 2: Shared diff
+- [ ] Write failing test
+- [ ] Run → FAIL
+- [ ] Implement `diffAttributes`
+- [ ] Run → PASS
+- [ ] Commit
+
+## Task 3: Flatten JSON
+- [ ] Write failing test
+- [ ] Run → FAIL
+- [ ] Implement `flattenSnapshotJson`
+- [ ] Run → PASS
+- [ ] Commit
+
+## Task 4+: API + UI
+- [ ] DB access modules
+- [ ] Fastify server + endpoints
+- [ ] Web UI

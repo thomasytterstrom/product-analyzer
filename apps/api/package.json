@@ -1,0 +1,14 @@
+{
+  "name": "@product-analyzer/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/dev.ts",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.4.5",
+    "vitest": "^2.1.8"
+  }
+}

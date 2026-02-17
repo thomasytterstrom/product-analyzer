@@ -1,0 +1,9 @@
+{
+  "name": "@product-analyzer/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"console.log('web dev placeholder (Vite not scaffolded yet)')\"",
+    "test": "node -e \"console.log('web: no tests yet')\""
+  }
+}
