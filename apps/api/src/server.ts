@@ -7,8 +7,21 @@ import { flattenSnapshotJson } from "@product-analyzer/shared";
 export function buildServer(opts?: { sourceDbPath: string; metadataDbPath: string }) {
   const app = Fastify({ logger: false });
 
-  const source = opts ? openSourceDb({ dbPath: opts.sourceDbPath }) : null;
-  const meta = opts ? openMetadataDb({ dbPath: opts.metadataDbPath }) : null;
+  // In tests we often want `buildServer()` to work without a database.
+  // In dev/prod we want it to auto-connect based on env vars.
+  const resolved = (() => {
+    if (opts) return opts;
+
+    const sourceDbPath = process.env.SOURCE_DB_PATH;
+    const metadataDbPath = process.env.METADATA_DB_PATH;
+    if (typeof sourceDbPath !== "string" || sourceDbPath.length === 0) return null;
+    if (typeof metadataDbPath !== "string" || metadataDbPath.length === 0) return null;
+
+    return { sourceDbPath, metadataDbPath };
+  })();
+
+  const source = resolved ? openSourceDb({ dbPath: resolved.sourceDbPath }) : null;
+  const meta = resolved ? openMetadataDb({ dbPath: resolved.metadataDbPath }) : null;
 
   app.get("/health", async () => {
     return { ok: true };
