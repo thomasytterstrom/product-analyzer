@@ -8,6 +8,14 @@ import { Checkbox } from "./components/ui/checkbox";
 import { Input } from "./components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 
+type SnapshotField = { fieldKey: string; valueText: string; valueType: string };
+type ConfigurationFieldRow = {
+  configurationId: string;
+  fieldKey: string;
+  tracked: boolean;
+  friendlyName: string | null;
+};
+
 export default function App() {
   const [productNumbers, setProductNumbers] = useState<string[]>([]);
   const [selectedProductNumber, setSelectedProductNumber] = useState<string>("");
@@ -18,12 +26,8 @@ export default function App() {
   >([]);
   const [selectedDeviceSnapshotId, setSelectedDeviceSnapshotId] = useState<string>("");
   const [compareDeviceSnapshotId, setCompareDeviceSnapshotId] = useState<string>("");
-  const [fields, setFields] = useState<
-    Array<{ fieldKey: string; valueText: string; valueType: string }>
-  >([]);
-  const [compareFields, setCompareFields] = useState<
-    Array<{ fieldKey: string; valueText: string; valueType: string }>
-  >([]);
+  const [fields, setFields] = useState<SnapshotField[]>([]);
+  const [compareFields, setCompareFields] = useState<SnapshotField[]>([]);
 
   const [diffLoading, setDiffLoading] = useState(false);
   const [diffRows, setDiffRows] = useState<
@@ -55,13 +59,16 @@ export default function App() {
   const compareConfigurationId =
     compareFields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
 
-  const [configurationFields, setConfigurationFields] = useState<
-    Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName: string | null }>
-  >([]);
+  const [configurationFields, setConfigurationFields] = useState<ConfigurationFieldRow[]>([]);
   const [configurationFieldsLoading, setConfigurationFieldsLoading] = useState(false);
   const [configurationFieldsSaving, setConfigurationFieldsSaving] = useState(false);
+  const [configurationFieldsSaveError, setConfigurationFieldsSaveError] = useState<string>("");
 
   const valueByFieldKey = new Map(fields.map((f) => [f.fieldKey, f] as const));
+
+  function isConfigurationFieldRow(row: SnapshotField | ConfigurationFieldRow): row is ConfigurationFieldRow {
+    return "tracked" in row;
+  }
 
   // Field discovery: seed the tracked-fields editor with keys present in the selected snapshot.
   // This enables first-time configurations (no rows in metadata DB yet) to start tracking.
@@ -383,6 +390,7 @@ export default function App() {
     if (!configurationId) return;
     const api = createApiClient({ baseUrl: "" });
     setConfigurationFieldsSaving(true);
+    setConfigurationFieldsSaveError("");
     try {
       const updated = await api.saveConfigurationFields(
         configurationId,
@@ -398,6 +406,9 @@ export default function App() {
         }))
       );
       setConfigurationFields(updated);
+    } catch (err) {
+      console.error("Failed to save tracked fields", err);
+      setConfigurationFieldsSaveError("Failed to save tracked fields. Please try again.");
     } finally {
       setConfigurationFieldsSaving(false);
     }
@@ -588,7 +599,7 @@ export default function App() {
                   <p className="text-sm text-muted-foreground">Loading tracked fields…</p>
                 ) : null}
 
-                <Table>
+                <Table aria-label="Fields (Snapshot A)">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[34%]">Field key</TableHead>
@@ -599,15 +610,15 @@ export default function App() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(configurationId ? configurationFields : fields)
-                      .filter((row) => ("fieldKey" in row ? row.fieldKey !== "root/ConfigurationId" : true))
+                    {(configurationId ? (configurationFields as Array<SnapshotField | ConfigurationFieldRow>) : fields)
+                      .filter((row) => row.fieldKey !== "root/ConfigurationId")
                       .map((row) => {
-                        const fieldKey = (row as any).fieldKey as string;
+                        const fieldKey = row.fieldKey;
                         const snap = valueByFieldKey.get(fieldKey);
                         const editable = Boolean(configurationId) && !configurationFieldsLoading;
 
-                        const tracked = configurationId ? (row as any).tracked : false;
-                        const friendlyName = configurationId ? ((row as any).friendlyName as string | null) : null;
+                        const tracked = isConfigurationFieldRow(row) ? row.tracked : false;
+                        const friendlyName = isConfigurationFieldRow(row) ? row.friendlyName : null;
 
                         return (
                           <TableRow key={fieldKey}>
@@ -615,9 +626,9 @@ export default function App() {
                             <TableCell className="break-all">{snap?.valueText ?? ""}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{snap?.valueType ?? ""}</TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-2">
+                              <label className="flex items-center gap-2">
                                 <Checkbox
-                                  aria-label={`Tracked ${fieldKey}`}
+                                  aria-label={`Track ${fieldKey}`}
                                   checked={Boolean(tracked)}
                                   disabled={!editable}
                                   onChange={(e) => {
@@ -631,7 +642,7 @@ export default function App() {
                                   }}
                                 />
                                 <span className="text-xs text-muted-foreground">Track</span>
-                              </div>
+                              </label>
                             </TableCell>
                             <TableCell>
                               <Input
@@ -665,6 +676,12 @@ export default function App() {
                     {configurationFieldsSaving ? "Saving…" : "Save tracked fields"}
                   </Button>
                 </div>
+
+                {configurationFieldsSaveError ? (
+                  <p className="text-sm text-destructive" role="alert">
+                    {configurationFieldsSaveError}
+                  </p>
+                ) : null}
               </>
             )}
           </CardContent>

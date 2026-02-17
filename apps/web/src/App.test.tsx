@@ -222,6 +222,7 @@ describe("App", () => {
     const snap = await screen.findByText(/snap-2/);
     fireEvent.click(snap);
 
+    expect(await screen.findByLabelText("Fields (Snapshot A)")).toBeInTheDocument();
     expect(await screen.findByText("root/FirmwareVersion")).toBeInTheDocument();
     expect(await screen.findByText("599807801M")).toBeInTheDocument();
     expect(calls.some((c) => c.includes("/snapshots/ds2/fields"))).toBe(true);
@@ -335,7 +336,7 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: /Fields \(Snapshot A\)/i })).toBeInTheDocument();
 
-    const tracked = await screen.findByLabelText("Tracked root/FirmwareVersion");
+    const tracked = await screen.findByLabelText("Track root/FirmwareVersion");
     expect((tracked as HTMLInputElement).checked).toBe(true);
 
     const friendly = await screen.findByLabelText("Friendly name root/FirmwareVersion");
@@ -578,7 +579,7 @@ describe("App", () => {
 
     fireEvent.click(await screen.findByText(/snap-1/));
 
-    const tracked = await screen.findByLabelText("Tracked root/FirmwareVersion");
+    const tracked = await screen.findByLabelText("Track root/FirmwareVersion");
     expect((tracked as HTMLInputElement).checked).toBe(false);
 
     fireEvent.click(tracked);
