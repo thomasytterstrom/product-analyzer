@@ -28,3 +28,8 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Fastify server + endpoints
 - [x] Dev server reads env + connects SQLite
 - [ ] Web UI (in progress)
+	- [x] Web API client: `getSnapshotFields(deviceSnapshotId)`
+	- [x] Web UI: show snapshot fields (parameter discovery)
+	- [ ] Web UI: tracked fields editor (per ConfigurationId)
+	- [ ] Web UI: diff two snapshots
+	- [ ] Web UI: trends/graphs across snapshots

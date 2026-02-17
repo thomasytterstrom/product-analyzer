@@ -10,6 +10,10 @@ export default function App() {
   const [snapshots, setSnapshots] = useState<
     Array<{ deviceSnapshotId: string; snapshotId: string; timeStampUtc: string }>
   >([]);
+  const [selectedDeviceSnapshotId, setSelectedDeviceSnapshotId] = useState<string>("");
+  const [fields, setFields] = useState<
+    Array<{ fieldKey: string; valueText: string; valueType: string }>
+  >([]);
 
   useEffect(() => {
     const api = createApiClient({ baseUrl: "" });
@@ -21,6 +25,8 @@ export default function App() {
       setSerialNumbers([]);
       setSelectedSerialNumber("");
       setSnapshots([]);
+      setSelectedDeviceSnapshotId("");
+      setFields([]);
       return;
     }
 
@@ -29,12 +35,16 @@ export default function App() {
       setSerialNumbers(sns);
       setSelectedSerialNumber("");
       setSnapshots([]);
+      setSelectedDeviceSnapshotId("");
+      setFields([]);
     });
   }, [selectedProductNumber]);
 
   useEffect(() => {
     if (!selectedProductNumber || !selectedSerialNumber) {
       setSnapshots([]);
+      setSelectedDeviceSnapshotId("");
+      setFields([]);
       return;
     }
 
@@ -44,8 +54,22 @@ export default function App() {
         productNumber: selectedProductNumber,
         serialNumber: selectedSerialNumber
       })
-      .then(setSnapshots);
+      .then((ss) => {
+        setSnapshots(ss);
+        setSelectedDeviceSnapshotId("");
+        setFields([]);
+      });
   }, [selectedProductNumber, selectedSerialNumber]);
+
+  useEffect(() => {
+    if (!selectedDeviceSnapshotId) {
+      setFields([]);
+      return;
+    }
+
+    const api = createApiClient({ baseUrl: "" });
+    void api.getSnapshotFields(selectedDeviceSnapshotId).then(setFields);
+  }, [selectedDeviceSnapshotId]);
 
   return (
     <div style={{ padding: 16 }}>
@@ -90,10 +114,36 @@ export default function App() {
         <ul>
           {snapshots.map((s) => (
             <li key={s.deviceSnapshotId}>
-              {s.snapshotId} — {s.timeStampUtc}
+              <button
+                type="button"
+                onClick={() => setSelectedDeviceSnapshotId(s.deviceSnapshotId)}
+              >
+                {s.snapshotId} — {s.timeStampUtc}
+              </button>
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {fields.length > 0 ? (
+        <table>
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Value</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {fields.map((f) => (
+              <tr key={f.fieldKey}>
+                <td>{f.fieldKey}</td>
+                <td>{f.valueText}</td>
+                <td>{f.valueType}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : null}
     </div>
   );

@@ -110,4 +110,78 @@ describe("App", () => {
     expect(await screen.findByText(/snap-2/)).toBeInTheDocument();
     expect(await screen.findByText(/2026-02-18T07:50:23\.000Z/)).toBeInTheDocument();
   });
+
+  it("loads snapshot fields after clicking a snapshot", async () => {
+    const calls: string[] = [];
+
+    globalThis.fetch = async (url: any) => {
+      const u = String(url);
+      calls.push(u);
+
+      if (u.endsWith("/product-numbers")) {
+        return new Response(JSON.stringify(["531285301"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/serial-numbers")) {
+        return new Response(JSON.stringify(["S1"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/products/") && u.includes("/snapshots")) {
+        return new Response(
+          JSON.stringify([
+            {
+              deviceSnapshotId: "ds2",
+              snapshotId: "snap-2",
+              timeStampUtc: "2026-02-18T07:50:23.000Z"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+      if (u.includes("/snapshots/ds2/fields")) {
+        return new Response(
+          JSON.stringify([
+            {
+              fieldKey: "root/FirmwareVersion",
+              valueText: "599807801M",
+              valueType: "string"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    render(<App />);
+
+    await screen.findByRole("option", { name: "531285301" });
+
+    fireEvent.change(screen.getByLabelText("Product number"), {
+      target: { value: "531285301" }
+    });
+
+    await screen.findByRole("option", { name: "S1" });
+    fireEvent.change(screen.getByLabelText("Serial number"), {
+      target: { value: "S1" }
+    });
+
+    const snap = await screen.findByText(/snap-2/);
+    fireEvent.click(snap);
+
+    expect(await screen.findByText("root/FirmwareVersion")).toBeInTheDocument();
+    expect(await screen.findByText("599807801M")).toBeInTheDocument();
+    expect(calls.some((c) => c.includes("/snapshots/ds2/fields"))).toBe(true);
+  });
 });

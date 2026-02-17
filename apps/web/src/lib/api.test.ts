@@ -77,4 +77,37 @@ describe("createApiClient", () => {
     ]);
     expect(calls[0].url).toBe("http://example.test/products/531285301/S1/snapshots");
   });
+
+  it("gets flattened fields for a snapshot", async () => {
+    const api = createApiClient({ baseUrl: "http://example.test" });
+
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify([
+          {
+            fieldKey: "root/FirmwareVersion",
+            valueText: "599807801M",
+            valueType: "string"
+          }
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      );
+    };
+
+    const result = await api.getSnapshotFields("ds2");
+
+    expect(result).toEqual([
+      {
+        fieldKey: "root/FirmwareVersion",
+        valueText: "599807801M",
+        valueType: "string"
+      }
+    ]);
+    expect(calls[0].url).toBe("http://example.test/snapshots/ds2/fields");
+  });
 });
