@@ -43,7 +43,7 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Step 3: Add shadcn/ui basics (utils + ui components) → run typecheck
 - [x] Step 4: Refactor `App.tsx` to use Tailwind + shadcn components (keep behavior + a11y)
 - [x] Step 5: Run `npm -w apps/web test` + `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 6: Commit (`feat(web): add tailwind + shadcn ui`)
+- [x] Step 6: Commit (`feat(web): add tailwind + shadcn ui`)
 
 ## Follow-ups
 - [ ] Manual run against real DB
