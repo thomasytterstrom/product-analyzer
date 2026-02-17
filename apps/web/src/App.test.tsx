@@ -1087,13 +1087,13 @@ describe("App", () => {
     fireEvent.click(await screen.findByLabelText("Include snap-2"));
 
     // Choose tracked field(s)
-    fireEvent.click(await screen.findByLabelText("Trend root/FirmwareVersion"));
+    fireEvent.click(await screen.findByLabelText("Select trend root/FirmwareVersion"));
 
     fireEvent.click(screen.getByRole("button", { name: /show trend/i }));
 
     expect(screen.getByRole("heading", { name: /Trends/i })).toBeInTheDocument();
 
-    const trendTable = await screen.findByLabelText("Trend");
+    const trendTable = await screen.findByRole("table", { name: "Trend root/FirmwareVersion" });
     const w = within(trendTable);
     // Ordered by timeStampUtc asc
     expect(w.getByRole("cell", { name: "2026-02-17T07:50:23.000Z" })).toBeInTheDocument();
@@ -1240,14 +1240,19 @@ describe("App", () => {
     fireEvent.click(await screen.findByLabelText("Include snap-2"));
 
     // Choose tracked field(s)
-    fireEvent.click(await screen.findByLabelText("Trend root/FirmwareVersion"));
+    fireEvent.click(await screen.findByLabelText("Select trend root/FirmwareVersion"));
 
     fireEvent.click(screen.getByRole("button", { name: /show trend/i }));
 
-    const svg = (await screen.findByLabelText("Trend chart")) as unknown as SVGElement;
-    expect(svg.tagName.toLowerCase()).toBe("svg");
-    expect(svg.querySelectorAll("circle").length).toBe(2);
-    expect(svg.querySelectorAll("path").length).toBeGreaterThan(0);
+    expect(await screen.findByLabelText("Trend chart")).toBeInTheDocument();
+
+    const seriesList = await screen.findByRole("list", { name: /trend series/i });
+    expect(within(seriesList).getByText("FW")).toBeInTheDocument();
+
+    // And the per-field table still renders points.
+    const trendTable = await screen.findByRole("table", { name: "Trend root/FirmwareVersion" });
+    expect(within(trendTable).getByRole("cell", { name: "2026-02-17T07:50:23.000Z" })).toBeInTheDocument();
+    expect(within(trendTable).getByRole("cell", { name: "1" })).toBeInTheDocument();
   });
 
   it("can plot multiple numeric trend fields as multiple series", async () => {
@@ -1408,8 +1413,8 @@ describe("App", () => {
     fireEvent.click(await screen.findByLabelText("Include snap-2"));
 
     // Choose multiple tracked fields
-    fireEvent.click(await screen.findByLabelText("Trend root/FirmwareVersion"));
-    fireEvent.click(await screen.findByLabelText("Trend root/Temperature"));
+    fireEvent.click(await screen.findByLabelText("Select trend root/FirmwareVersion"));
+    fireEvent.click(await screen.findByLabelText("Select trend root/Temperature"));
 
     fireEvent.click(screen.getByRole("button", { name: /show trend/i }));
 

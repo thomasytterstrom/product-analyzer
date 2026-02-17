@@ -8,6 +8,17 @@ import { Checkbox } from "./components/ui/checkbox";
 import { Input } from "./components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from "recharts";
+
 type SnapshotField = { fieldKey: string; valueText: string; valueType: string };
 type ConfigurationFieldRow = {
   configurationId: string;
@@ -51,9 +62,6 @@ export default function App() {
 
   const [trendSnapshotIds, setTrendSnapshotIds] = useState<string[]>([]);
   const [trendFieldKeys, setTrendFieldKeys] = useState<string[]>([]);
-  const [trendRows, setTrendRows] = useState<Array<{ timeStampUtc: string; valueText: string | null }>>(
-    []
-  );
   const [trendSeries, setTrendSeries] = useState<TimeSeriesSeries[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
 
@@ -78,6 +86,23 @@ export default function App() {
       return { fieldKey: s.fieldKey, points };
     })
     .filter((s) => s.points.length >= 2);
+
+  const numericTrendChartRows = (() => {
+    if (numericTrendSeries.length === 0) return [] as Array<Record<string, unknown>>;
+
+    const byTs = new Map<string, Record<string, unknown>>();
+    for (const series of numericTrendSeries) {
+      for (const p of series.points) {
+        const row = byTs.get(p.timeStampUtc) ?? { timeStampUtc: p.timeStampUtc };
+        (row as Record<string, unknown>)[series.fieldKey] = p.valueNumber;
+        byTs.set(p.timeStampUtc, row);
+      }
+    }
+
+    return [...byTs.values()].sort((a, b) =>
+      String(a.timeStampUtc).localeCompare(String(b.timeStampUtc))
+    );
+  })();
 
   const configurationId =
     fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
@@ -170,7 +195,6 @@ export default function App() {
       setTrendSnapshotIds([]);
       setTrendFieldKeys([]);
       trendFieldKeysRef.current = [];
-      setTrendRows([]);
       setTrendSeries([]);
       setTrendLoading(false);
       return;
@@ -192,7 +216,6 @@ export default function App() {
       setTrendSnapshotIds([]);
       setTrendFieldKeys([]);
       trendFieldKeysRef.current = [];
-      setTrendRows([]);
       setTrendSeries([]);
       setTrendLoading(false);
     });
@@ -214,7 +237,6 @@ export default function App() {
       setTrendSnapshotIds([]);
       setTrendFieldKeys([]);
       trendFieldKeysRef.current = [];
-      setTrendRows([]);
       setTrendSeries([]);
       setTrendLoading(false);
       return;
@@ -239,7 +261,6 @@ export default function App() {
         setTrendSnapshotIds([]);
         setTrendFieldKeys([]);
         trendFieldKeysRef.current = [];
-        setTrendRows([]);
         setTrendSeries([]);
         setTrendLoading(false);
       });
@@ -392,11 +413,6 @@ export default function App() {
       }));
 
       setTrendSeries(normalized);
-
-      const first = normalized[0];
-      setTrendRows(
-        (first?.points ?? []).map((p) => ({ timeStampUtc: p.timeStampUtc, valueText: p.valueText }))
-      );
     } finally {
       setTrendLoading(false);
     }
@@ -1007,7 +1023,7 @@ export default function App() {
                                       className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
                                     >
                                       <Checkbox
-                                        aria-label={`Trend ${k}`}
+                                        aria-label={`Select trend ${k}`}
                                         checked={checked}
                                         onChange={(e) => {
                                           const next = (e.target as HTMLInputElement).checked;
@@ -1038,109 +1054,34 @@ export default function App() {
 
                           {trendSeries.length > 0 ? (
                             <div className="space-y-3">
-                              {numericTrendSeries.length >= 1
-                                ? (() => {
-                                    const width = 640;
-                                    const height = 200;
-                                    const padX = 24;
-                                    const padY = 24;
-
-                                    const values = numericTrendSeries.flatMap((s) =>
-                                      s.points.map((p) => p.valueNumber as number)
-                                    );
-                                    let minY = Math.min(...values);
-                                    let maxY = Math.max(...values);
-                                    if (minY === maxY) {
-                                      minY -= 1;
-                                      maxY += 1;
-                                    }
-
-                                    const plotW = width - padX * 2;
-                                    const plotH = height - padY * 2;
-                                    const xCount = Math.max(...numericTrendSeries.map((s) => s.points.length));
-                                    const stepX = xCount <= 1 ? 0 : plotW / (xCount - 1);
-
-                                    const palette = [
-                                      "currentColor",
-                                      "#0ea5e9",
-                                      "#a855f7",
-                                      "#f97316",
-                                      "#22c55e"
-                                    ];
-
-                                    return (
-                                      <div className="rounded-md border bg-background p-3">
-                                        <svg
-                                          aria-label="Trend chart"
-                                          role="img"
-                                          viewBox={`0 0 ${width} ${height}`}
-                                          className="h-48 w-full"
-                                        >
-                                          <title>Trend chart</title>
-                                          <rect x="0" y="0" width={width} height={height} fill="transparent" />
-
-                                          {/* grid */}
-                                          <line
-                                            x1={padX}
-                                            y1={padY}
-                                            x2={padX}
-                                            y2={height - padY}
-                                            stroke="currentColor"
-                                            opacity="0.15"
+                              {numericTrendSeries.length > 0 && numericTrendChartRows.length >= 2 ? (
+                                <div className="rounded-md border bg-background p-3">
+                                  <div aria-label="Trend chart" className="h-56 w-full">
+                                    <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={200}>
+                                      <LineChart
+                                        data={numericTrendChartRows}
+                                        margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
+                                      >
+                                        <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                                        <XAxis dataKey="timeStampUtc" hide />
+                                        <YAxis />
+                                        <Tooltip />
+                                        <Legend />
+                                        {numericTrendSeries.map((s) => (
+                                          <Line
+                                            key={s.fieldKey}
+                                            type="monotone"
+                                            dataKey={s.fieldKey}
+                                            name={trackedFriendlyNameByKey.get(s.fieldKey) ?? s.fieldKey}
+                                            dot={false}
+                                            strokeWidth={2}
                                           />
-                                          <line
-                                            x1={padX}
-                                            y1={height - padY}
-                                            x2={width - padX}
-                                            y2={height - padY}
-                                            stroke="currentColor"
-                                            opacity="0.15"
-                                          />
-
-                                          {/* lines */}
-                                          {numericTrendSeries.map((series, sIdx) => {
-                                            const stroke = palette[sIdx % palette.length];
-                                            const pts = series.points.map((p, idx) => {
-                                              const x = padX + idx * stepX;
-                                              const t = ((p.valueNumber as number) - minY) / (maxY - minY);
-                                              const y = padY + (1 - t) * plotH;
-                                              return { x, y };
-                                            });
-
-                                            const d = pts
-                                              .map(
-                                                (pt, i) =>
-                                                  `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`
-                                              )
-                                              .join(" ");
-
-                                            return (
-                                              <g key={series.fieldKey}>
-                                                <path
-                                                  d={d}
-                                                  fill="none"
-                                                  stroke={stroke}
-                                                  strokeWidth="2"
-                                                  opacity="0.9"
-                                                />
-                                                {pts.map((pt, idx) => (
-                                                  <circle
-                                                    key={idx}
-                                                    cx={pt.x}
-                                                    cy={pt.y}
-                                                    r="4"
-                                                    fill={stroke}
-                                                    opacity="0.95"
-                                                  />
-                                                ))}
-                                              </g>
-                                            );
-                                          })}
-                                        </svg>
-                                      </div>
-                                    );
-                                  })()
-                                : null}
+                                        ))}
+                                      </LineChart>
+                                    </ResponsiveContainer>
+                                  </div>
+                                </div>
+                              ) : null}
 
                               <ul aria-label="Trend series" role="list" className="flex flex-wrap gap-2 text-sm">
                                 {trendSeries.map((s) => {
@@ -1153,24 +1094,26 @@ export default function App() {
                                 })}
                               </ul>
 
-                              {trendRows.length > 0 ? (
-                                <Table aria-label="Trend">
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
-                                      <TableHead>Value</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {trendRows.map((r) => (
-                                      <TableRow key={r.timeStampUtc}>
-                                        <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
-                                        <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
+                              <div className="space-y-4">
+                                {trendSeries.map((s) => (
+                                  <Table key={s.fieldKey} aria-label={`Trend ${s.fieldKey}`}>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
+                                        <TableHead>Value</TableHead>
                                       </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              ) : null}
+                                    </TableHeader>
+                                    <TableBody>
+                                      {s.points.map((p) => (
+                                        <TableRow key={`${s.fieldKey}:${p.timeStampUtc}`}>
+                                          <TableCell className="font-mono text-xs">{p.timeStampUtc}</TableCell>
+                                          <TableCell className="break-all font-mono text-xs">{p.valueText ?? ""}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                ))}
+                              </div>
                             </div>
                           ) : null}
                         </div>
