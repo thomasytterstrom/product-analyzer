@@ -7,6 +7,9 @@ export type AttributeDiffChanged = {
 };
 export type AttributeDiffUnchanged = { key: string; value: string | null };
 
+const hasOwn = (obj: object, key: string) =>
+  Object.prototype.hasOwnProperty.call(obj, key);
+
 export function diffAttributes(
   a: Record<string, string | null | undefined>,
   b: Record<string, string | null | undefined>
@@ -19,11 +22,15 @@ export function diffAttributes(
   const unchanged: AttributeDiffUnchanged[] = [];
 
   for (const key of [...keys].sort()) {
-    const av = a[key] ?? null;
-    const bv = b[key] ?? null;
+    // Treat `undefined` as "missing" rather than a real value.
+    const aHas = hasOwn(a, key) && a[key] !== undefined;
+    const bHas = hasOwn(b, key) && b[key] !== undefined;
 
-    if (!(key in a) && key in b) added.push({ key, to: bv });
-    else if (key in a && !(key in b)) removed.push({ key, from: av });
+    const av = aHas ? (a[key] ?? null) : null;
+    const bv = bHas ? (b[key] ?? null) : null;
+
+    if (!aHas && bHas) added.push({ key, to: bv });
+    else if (aHas && !bHas) removed.push({ key, from: av });
     else if (av !== bv) changed.push({ key, from: av, to: bv });
     else unchanged.push({ key, value: av });
   }
