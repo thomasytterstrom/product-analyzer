@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { createApiClient } from "./lib/api";
 import { Badge } from "./components/ui/badge";
@@ -64,8 +64,6 @@ export default function App() {
   const [trendFieldKeys, setTrendFieldKeys] = useState<string[]>([]);
   const [trendSeries, setTrendSeries] = useState<TimeSeriesSeries[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
-
-  const trendFieldKeysRef = useRef<string[]>([]);
 
   const numericTrendSeries = trendSeries
     .map((s) => {
@@ -194,7 +192,6 @@ export default function App() {
 
       setTrendSnapshotIds([]);
       setTrendFieldKeys([]);
-      trendFieldKeysRef.current = [];
       setTrendSeries([]);
       setTrendLoading(false);
       return;
@@ -215,7 +212,6 @@ export default function App() {
 
       setTrendSnapshotIds([]);
       setTrendFieldKeys([]);
-      trendFieldKeysRef.current = [];
       setTrendSeries([]);
       setTrendLoading(false);
     });
@@ -236,7 +232,6 @@ export default function App() {
 
       setTrendSnapshotIds([]);
       setTrendFieldKeys([]);
-      trendFieldKeysRef.current = [];
       setTrendSeries([]);
       setTrendLoading(false);
       return;
@@ -260,7 +255,6 @@ export default function App() {
 
         setTrendSnapshotIds([]);
         setTrendFieldKeys([]);
-        trendFieldKeysRef.current = [];
         setTrendSeries([]);
         setTrendLoading(false);
       });
@@ -385,7 +379,7 @@ export default function App() {
   ]);
 
   async function showTrend() {
-    const fieldKeys = trendFieldKeysRef.current.length > 0 ? trendFieldKeysRef.current : trendFieldKeys;
+    const fieldKeys = trendFieldKeys;
     if (fieldKeys.length === 0) return;
     if (trendSnapshotIds.length === 0) return;
     if (!selectedProductNumber || !selectedSerialNumber) return;
@@ -1027,11 +1021,9 @@ export default function App() {
                                         checked={checked}
                                         onChange={(e) => {
                                           const next = (e.target as HTMLInputElement).checked;
-                                          setTrendFieldKeys((prev) => {
-                                            const updated = next ? [...prev, k] : prev.filter((x) => x !== k);
-                                            trendFieldKeysRef.current = updated;
-                                            return updated;
-                                          });
+                                          setTrendFieldKeys((prev) =>
+                                            next ? [...prev, k] : prev.filter((x) => x !== k)
+                                          );
                                         }}
                                       />
                                       <span className="min-w-0 truncate">{label}</span>
