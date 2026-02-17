@@ -38,6 +38,36 @@ export default function App() {
   const [configurationFieldsLoading, setConfigurationFieldsLoading] = useState(false);
   const [configurationFieldsSaving, setConfigurationFieldsSaving] = useState(false);
 
+  // Field discovery: seed the tracked-fields editor with keys present in the selected snapshot.
+  // This enables first-time configurations (no rows in metadata DB yet) to start tracking.
+  // Important: run after config-fields loading completes so an empty GET can't overwrite seeded rows.
+  useEffect(() => {
+    if (!configurationId) return;
+    if (fields.length === 0) return;
+    if (configurationFieldsLoading) return;
+
+    const discoveredKeys = fields
+      .map((f) => f.fieldKey)
+      .filter((k) => k.length > 0 && k !== "root/ConfigurationId");
+
+    if (discoveredKeys.length === 0) return;
+
+    setConfigurationFields((prev) => {
+      const existing = new Set(prev.map((p) => p.fieldKey));
+      const additions = discoveredKeys
+        .filter((k) => !existing.has(k))
+        .map((fieldKey) => ({
+          configurationId,
+          fieldKey,
+          tracked: false,
+          friendlyName: null
+        }));
+
+      if (additions.length === 0) return prev;
+      return [...prev, ...additions].sort((a, b) => a.fieldKey.localeCompare(b.fieldKey));
+    });
+  }, [configurationId, fields, configurationFieldsLoading]);
+
   useEffect(() => {
     const api = createApiClient({ baseUrl: "" });
     let active = true;
@@ -240,7 +270,31 @@ export default function App() {
       .getConfigurationFields(configurationId)
       .then((rows) => {
         if (!active) return;
-        setConfigurationFields(rows);
+
+        const discoveredKeys = fields
+          .map((f) => f.fieldKey)
+          .filter((k) => k.length > 0 && k !== "root/ConfigurationId");
+
+        setConfigurationFields((prev) => {
+          const safePrev = prev.every((p) => p.configurationId === configurationId) ? prev : [];
+          const byKey = new Map(safePrev.map((p) => [p.fieldKey, p] as const));
+
+          // Server is the source of truth for tracked/friendlyName for keys it knows about.
+          for (const r of rows) byKey.set(r.fieldKey, r);
+
+          // Seed any discovered keys that aren't present yet.
+          for (const fieldKey of discoveredKeys) {
+            if (byKey.has(fieldKey)) continue;
+            byKey.set(fieldKey, {
+              configurationId,
+              fieldKey,
+              tracked: false,
+              friendlyName: null
+            });
+          }
+
+          return [...byKey.values()].sort((a, b) => a.fieldKey.localeCompare(b.fieldKey));
+        });
       })
       .finally(() => {
         if (!active) return;
@@ -316,7 +370,20 @@ export default function App() {
       </div>
 
       {snapshots.length > 0 ? (
-        <ul>
+        <div>
+          <div style={{ marginTop: 12, marginBottom: 8 }}>
+            <div>
+              <strong>A (view)</strong>: {selectedDeviceSnapshotId || "(select a snapshot)"}
+            </div>
+            <div>
+              <strong>B (compare)</strong>: {compareDeviceSnapshotId || "(click Compare on another snapshot)"}
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.8 }}>
+              Tip: click a snapshot to view it as A, then click <em>Compare</em> on another snapshot to set B.
+            </div>
+          </div>
+
+          <ul>
           {snapshots.map((s) => (
             <li key={s.deviceSnapshotId}>
               <button
@@ -337,7 +404,8 @@ export default function App() {
               </button>
             </li>
           ))}
-        </ul>
+          </ul>
+        </div>
       ) : null}
 
       {fields.length > 0 ? (
@@ -372,7 +440,9 @@ export default function App() {
             {configurationFieldsLoading ? <div>Loading…</div> : null}
 
             {!configurationFieldsLoading && configurationFields.length === 0 ? (
-              <div>No configuration fields found.</div>
+              <div>
+                No fields discovered yet. Select a snapshot to discover fields, then choose which ones to track.
+              </div>
             ) : null}
 
             {configurationFields.map((row) => (
@@ -437,7 +507,9 @@ export default function App() {
               Cannot diff snapshots with different ConfigurationId ({configurationId} vs {compareConfigurationId}).
             </div>
           ) : trackedFieldKeys.length === 0 ? (
-            <div>No tracked fields configured for this ConfigurationId.</div>
+            <div>
+              No tracked fields configured for this ConfigurationId. Mark fields as tracked above, then compare again.
+            </div>
           ) : diffRows.length === 0 ? (
             <div>No changes across tracked fields.</div>
           ) : (
@@ -511,6 +583,12 @@ export default function App() {
                 ))}
               </select>
             </label>
+
+            {trackedFieldKeys.length === 0 ? (
+              <div style={{ fontSize: 12, opacity: 0.8 }}>
+                To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Tracked fields section.
+              </div>
+            ) : null}
 
             <button
               type="button"

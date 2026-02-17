@@ -440,6 +440,119 @@ describe("App", () => {
     );
   });
 
+  it("can track a discovered field even when no configuration fields exist yet", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+    globalThis.fetch = async (url: any, init?: any) => {
+      const u = String(url);
+      calls.push({ url: u, init });
+
+      if (u.endsWith("/product-numbers")) {
+        return new Response(JSON.stringify(["531285301"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/serial-numbers")) {
+        return new Response(JSON.stringify(["S1"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/products/") && u.includes("/snapshots")) {
+        return new Response(
+          JSON.stringify([
+            {
+              deviceSnapshotId: "ds1",
+              snapshotId: "snap-1",
+              timeStampUtc: "2026-02-17T07:50:23.000Z"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+      if (u.includes("/snapshots/ds1/fields")) {
+        return new Response(
+          JSON.stringify([
+            {
+              fieldKey: "root/ConfigurationId",
+              valueText: "cfg-1",
+              valueType: "string"
+            },
+            {
+              fieldKey: "root/FirmwareVersion",
+              valueText: "599807801M",
+              valueType: "string"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      if (u.includes("/configurations/cfg-1/fields") && (!init || init.method === "GET")) {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+
+      if (u.includes("/configurations/cfg-1/fields") && init?.method === "PUT") {
+        return new Response(
+          JSON.stringify([
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/FirmwareVersion",
+              tracked: true,
+              friendlyName: null
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    render(<App />);
+
+    await screen.findByRole("option", { name: "531285301" });
+    fireEvent.change(screen.getByLabelText("Product number"), {
+      target: { value: "531285301" }
+    });
+
+    await screen.findByRole("option", { name: "S1" });
+    fireEvent.change(screen.getByLabelText("Serial number"), {
+      target: { value: "S1" }
+    });
+
+    fireEvent.click(await screen.findByText(/snap-1/));
+
+    const tracked = await screen.findByLabelText("Tracked root/FirmwareVersion");
+    expect((tracked as HTMLInputElement).checked).toBe(false);
+
+    fireEvent.click(tracked);
+    fireEvent.click(screen.getByRole("button", { name: /save tracked fields/i }));
+
+    const putCall = calls.find((c) =>
+      c.url.includes("/configurations/cfg-1/fields") && c.init?.method === "PUT"
+    );
+    expect(putCall).toBeTruthy();
+    expect(putCall?.init?.body).toBe(
+      JSON.stringify({
+        fields: [{ fieldKey: "root/FirmwareVersion", tracked: true, friendlyName: null }]
+      })
+    );
+  });
+
   it("shows diff for tracked fields between two snapshots", async () => {
     const calls: string[] = [];
 
