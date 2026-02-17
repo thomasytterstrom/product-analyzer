@@ -742,13 +742,13 @@ export default function App() {
                         />
                       </label>
 
-                      <Table aria-label="Fields (Snapshot A)">
+                      <Table aria-label="Fields (Snapshot A)" className="table-fixed">
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-[34%]">Field key</TableHead>
                             <TableHead className="w-[45%]">Value (A)</TableHead>
                             <TableHead className="w-[9rem]">Tracked</TableHead>
-                            <TableHead className="w-[24rem]">Friendly name</TableHead>
+                            <TableHead className="w-[28rem]">Friendly name</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>

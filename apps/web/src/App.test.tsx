@@ -323,6 +323,10 @@ describe("App", () => {
     const table = await screen.findByLabelText("Fields (Snapshot A)");
     const tableWithin = within(table);
 
+    // We use a fixed table layout so column widths are honored (otherwise the long field keys
+    // can steal all horizontal space and Friendly name won't visually grow).
+    expect(table).toHaveClass("table-fixed");
+
     expect(tableWithin.getByRole("columnheader", { name: /field key/i })).toBeInTheDocument();
 
     const valueHeader = tableWithin.getByRole("columnheader", { name: /value \(a\)/i });
@@ -332,7 +336,7 @@ describe("App", () => {
     expect(tableWithin.getByRole("columnheader", { name: /tracked/i })).toBeInTheDocument();
     const friendlyHeader = tableWithin.getByRole("columnheader", { name: /friendly name/i });
     expect(friendlyHeader).toBeInTheDocument();
-    expect(friendlyHeader).toHaveClass("w-[24rem]");
+    expect(friendlyHeader).toHaveClass("w-[28rem]");
   });
 
   it("derives ConfigurationId and persists tracked toggle immediately when clicking Track", async () => {
