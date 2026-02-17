@@ -3,6 +3,11 @@ node_modules/
 dist/
 .DS_Store
 
+# Local data / sqlite
+data/
+*.db
+*.db-journal
+
 # Env files
 .env
 .env.*
