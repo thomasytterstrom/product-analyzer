@@ -1,11 +1,20 @@
 import "dotenv/config";
 
+import fs from "node:fs";
+import path from "node:path";
+
 import { buildServer } from "./server.js";
 import { getEnv } from "./env.js";
 
 const env = getEnv(process.env);
 
-const app = buildServer();
+const sourceDbPath = path.resolve(env.SOURCE_DB_PATH);
+const metadataDbPath = path.resolve(env.METADATA_DB_PATH);
+
+// Ensure the sidecar DB directory exists.
+fs.mkdirSync(path.dirname(metadataDbPath), { recursive: true });
+
+const app = buildServer({ sourceDbPath, metadataDbPath });
 
 const port = env.PORT ?? 5174;
 const host = "127.0.0.1";
