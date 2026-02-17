@@ -28,10 +28,15 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Fastify server + endpoints
 - [x] Dev server reads env + connects SQLite
 - [x] Task 7: Metadata endpoints (tracked fields + friendly names)
-- [ ] Web UI (in progress)
+
+- [x] Web UI
 	- [x] Web API client: `getSnapshotFields(deviceSnapshotId)`
 	- [x] Web UI: show snapshot fields (parameter discovery)
 	- [x] Web UI: tracked fields editor (per ConfigurationId)
 	- [x] Code review: tracked-fields editor contract alignment
 	- [x] Web UI: diff two snapshots
 	- [x] Web UI: trends/graphs across snapshots
+
+## Follow-ups
+- [ ] Manual run against real DB
+- [ ] Optional: add server-side diff/timeseries endpoints and switch UI to them
