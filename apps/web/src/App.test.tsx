@@ -19,6 +19,22 @@ describe("App", () => {
     expect(screen.getByText(/Product Analyzer/i)).toBeInTheDocument();
   });
 
+  it("renders semantic layout regions and key sections", () => {
+    render(<App />);
+
+    // Landmarks
+    expect(screen.getByRole("banner")).toBeInTheDocument();
+    expect(screen.getByRole("main")).toBeInTheDocument();
+
+    // Key sections should exist even before any data loads.
+    expect(screen.getByRole("heading", { name: /Selection/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Snapshots/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Field discovery/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Tracked fields/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Diff/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Trends/i })).toBeInTheDocument();
+  });
+
   it("loads and shows product numbers", async () => {
     globalThis.fetch = async () => {
       return new Response(JSON.stringify(["531285301", "999"]), {
@@ -684,8 +700,11 @@ describe("App", () => {
   });
 
   it("shows a trend (time series) for a tracked field across selected snapshots", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+
     globalThis.fetch = async (url: any, init?: any) => {
       const u = String(url);
+      calls.push({ url: u, init });
 
       if (u.endsWith("/product-numbers")) {
         return new Response(JSON.stringify(["531285301"]), {
@@ -735,6 +754,31 @@ describe("App", () => {
           JSON.stringify([
             { fieldKey: "root/ConfigurationId", valueText: "cfg-1", valueType: "string" },
             { fieldKey: "root/FirmwareVersion", valueText: "B", valueType: "string" }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      if (u.includes("/products/531285301/S1/timeseries") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify([
+            {
+              fieldKey: "root/FirmwareVersion",
+              points: [
+                {
+                  deviceSnapshotId: "ds1",
+                  timeStampUtc: "2026-02-17T07:50:23.000Z",
+                  valueText: "A",
+                  valueType: "string"
+                },
+                {
+                  deviceSnapshotId: "ds2",
+                  timeStampUtc: "2026-02-18T07:50:23.000Z",
+                  valueText: "B",
+                  valueType: "string"
+                }
+              ]
+            }
           ]),
           { status: 200, headers: { "content-type": "application/json" } }
         );
@@ -795,5 +839,10 @@ describe("App", () => {
     expect(w.getByRole("cell", { name: "A" })).toBeInTheDocument();
     expect(w.getByRole("cell", { name: "2026-02-18T07:50:23.000Z" })).toBeInTheDocument();
     expect(w.getByRole("cell", { name: "B" })).toBeInTheDocument();
+
+    const post = calls.find((c) =>
+      c.url.includes("/products/531285301/S1/timeseries") && c.init?.method === "POST"
+    );
+    expect(post).toBeTruthy();
   });
 });

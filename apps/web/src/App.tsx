@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { createApiClient } from "./lib/api";
+import { Badge } from "./components/ui/badge";
+import { Button } from "./components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
+import { Checkbox } from "./components/ui/checkbox";
+import { Input } from "./components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table";
 
 export default function App() {
   const [productNumbers, setProductNumbers] = useState<string[]>([]);
@@ -225,29 +231,23 @@ export default function App() {
   async function showTrend() {
     if (!trendFieldKey) return;
     if (trendSnapshotIds.length === 0) return;
+    if (!selectedProductNumber || !selectedSerialNumber) return;
 
     const api = createApiClient({ baseUrl: "" });
     setTrendLoading(true);
     try {
-      const snapshotById = new Map(snapshots.map((s) => [s.deviceSnapshotId, s] as const));
+      const series = await api.getTimeSeries({
+        productNumber: selectedProductNumber,
+        serialNumber: selectedSerialNumber,
+        snapshotIds: trendSnapshotIds,
+        fieldKeys: [trendFieldKey]
+      });
 
-      const points = await Promise.all(
-        trendSnapshotIds.map(async (deviceSnapshotId) => {
-          const snap = snapshotById.get(deviceSnapshotId);
-          const timeStampUtc = snap?.timeStampUtc ?? "";
-
-          // Reuse already loaded fields for snapshot A/B when possible.
-          const fs =
-            deviceSnapshotId === selectedDeviceSnapshotId
-              ? fields
-              : deviceSnapshotId === compareDeviceSnapshotId
-                ? compareFields
-                : await api.getSnapshotFields(deviceSnapshotId);
-
-          const v = fs.find((f) => f.fieldKey === trendFieldKey)?.valueText ?? null;
-          return { timeStampUtc, valueText: v };
-        })
-      );
+      const first = series[0];
+      const points = (first?.points ?? []).map((p) => ({
+        timeStampUtc: p.timeStampUtc,
+        valueText: p.valueText
+      }));
 
       points.sort((a, b) => a.timeStampUtc.localeCompare(b.timeStampUtc));
       setTrendRows(points);
@@ -331,294 +331,430 @@ export default function App() {
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1>Product Analyzer</h1>
-
-      <div style={{ display: "grid", gap: 8, maxWidth: 360 }}>
-        <label>
-          Product number
-          <select
-            aria-label="Product number"
-            value={selectedProductNumber}
-            onChange={(e) => setSelectedProductNumber(e.target.value)}
-          >
-            <option value="">Select…</option>
-            {productNumbers.map((pn) => (
-              <option key={pn} value={pn}>
-                {pn}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label>
-          Serial number
-          <select
-            aria-label="Serial number"
-            value={selectedSerialNumber}
-            onChange={(e) => setSelectedSerialNumber(e.target.value)}
-            disabled={!selectedProductNumber}
-          >
-            <option value="">Select…</option>
-            {serialNumbers.map((sn) => (
-              <option key={sn} value={sn}>
-                {sn}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {snapshots.length > 0 ? (
-        <div>
-          <div style={{ marginTop: 12, marginBottom: 8 }}>
-            <div>
-              <strong>A (view)</strong>: {selectedDeviceSnapshotId || "(select a snapshot)"}
-            </div>
-            <div>
-              <strong>B (compare)</strong>: {compareDeviceSnapshotId || "(click Compare on another snapshot)"}
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.8 }}>
-              Tip: click a snapshot to view it as A, then click <em>Compare</em> on another snapshot to set B.
-            </div>
+    <div className="min-h-screen">
+      <header className="border-b bg-background/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-start justify-between gap-4 px-4 py-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold leading-none tracking-tight">Product Analyzer</h1>
+            <p className="text-sm text-muted-foreground">
+              Browse device snapshots, choose tracked fields, compare changes, and view trends.
+            </p>
           </div>
 
-          <ul>
-          {snapshots.map((s) => (
-            <li key={s.deviceSnapshotId}>
-              <button
-                type="button"
-                onClick={() => setSelectedDeviceSnapshotId(s.deviceSnapshotId)}
-              >
-                {s.snapshotId} — {s.timeStampUtc}
-              </button>
+          <div className="flex flex-col items-end gap-2">
+            {configurationId ? (
+              <Badge className="max-w-[22rem] truncate" title={configurationId}>
+                ConfigurationId: {configurationId}
+              </Badge>
+            ) : (
+              <Badge variant="outline">No snapshot selected</Badge>
+            )}
 
-              <button
-                type="button"
-                aria-label={`Compare ${s.snapshotId}`}
-                onClick={() => setCompareDeviceSnapshotId(s.deviceSnapshotId)}
-                style={{ marginLeft: 8 }}
-                disabled={!selectedDeviceSnapshotId}
-              >
-                Compare
-              </button>
-            </li>
-          ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {fields.length > 0 ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Field</th>
-              <th>Value</th>
-              <th>Type</th>
-            </tr>
-          </thead>
-          <tbody>
-            {fields.map((f) => (
-              <tr key={f.fieldKey}>
-                <td>{f.fieldKey}</td>
-                <td>{f.valueText}</td>
-                <td>{f.valueType}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
-
-      {selectedDeviceSnapshotId && configurationId ? (
-        <div style={{ marginTop: 16 }}>
-          <h2>Tracked fields</h2>
-          <div style={{ display: "grid", gap: 8, maxWidth: 720 }}>
-            <div>
-              <strong>ConfigurationId:</strong> {configurationId}
-            </div>
-
-            {configurationFieldsLoading ? <div>Loading…</div> : null}
-
-            {!configurationFieldsLoading && configurationFields.length === 0 ? (
-              <div>
-                No fields discovered yet. Select a snapshot to discover fields, then choose which ones to track.
-              </div>
+            {selectedDeviceSnapshotId ? (
+              <Badge variant="outline" className="max-w-[22rem] truncate" title={selectedDeviceSnapshotId}>
+                A: {selectedDeviceSnapshotId}
+              </Badge>
             ) : null}
 
-            {configurationFields.map((row) => (
-              <div
-                key={row.fieldKey}
-                style={{ display: "grid", gap: 4, padding: 8, border: "1px solid #ddd" }}
-              >
-                <div>{row.fieldKey}</div>
-
-                <label>
-                  <input
-                    type="checkbox"
-                    aria-label={`Tracked ${row.fieldKey}`}
-                    checked={row.tracked}
-                    onChange={(e) => {
-                      const checked = e.target.checked;
-                      setConfigurationFields((prev) =>
-                        prev.map((p) =>
-                          p.fieldKey === row.fieldKey ? { ...p, tracked: checked } : p
-                        )
-                      );
-                    }}
-                  />
-                  Tracked
-                </label>
-
-                <label>
-                  Friendly name
-                  <input
-                    aria-label={`Friendly name ${row.fieldKey}`}
-                    value={row.friendlyName ?? ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setConfigurationFields((prev) =>
-                        prev.map((p) =>
-                          p.fieldKey === row.fieldKey ? { ...p, friendlyName: value } : p
-                        )
-                      );
-                    }}
-                  />
-                </label>
-              </div>
-            ))}
-
-            <button
-              type="button"
-              onClick={() => void saveTrackedFields()}
-              disabled={configurationFieldsSaving || configurationFieldsLoading}
-            >
-              {configurationFieldsSaving ? "Saving…" : "Save tracked fields"}
-            </button>
+            {compareDeviceSnapshotId ? (
+              <Badge variant="outline" className="max-w-[22rem] truncate" title={compareDeviceSnapshotId}>
+                B: {compareDeviceSnapshotId}
+              </Badge>
+            ) : null}
           </div>
         </div>
-      ) : null}
+      </header>
 
-      {selectedDeviceSnapshotId && compareDeviceSnapshotId ? (
-        <div style={{ marginTop: 16 }}>
-          <h2>Diff</h2>
+      <main className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Selection</CardTitle>
+              <CardDescription>Pick a product number and serial number.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Product number</span>
+                  <select
+                    aria-label="Product number"
+                    value={selectedProductNumber}
+                    onChange={(e) => setSelectedProductNumber(e.target.value)}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Select…</option>
+                    {productNumbers.map((pn) => (
+                      <option key={pn} value={pn}>
+                        {pn}
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-          {configurationId && compareConfigurationId && configurationId !== compareConfigurationId ? (
-            <div>
-              Cannot diff snapshots with different ConfigurationId ({configurationId} vs {compareConfigurationId}).
-            </div>
-          ) : trackedFieldKeys.length === 0 ? (
-            <div>
-              No tracked fields configured for this ConfigurationId. Mark fields as tracked above, then compare again.
-            </div>
-          ) : diffRows.length === 0 ? (
-            <div>No changes across tracked fields.</div>
-          ) : (
-            <table aria-label="Diff">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>A</th>
-                  <th>B</th>
-                </tr>
-              </thead>
-              <tbody>
-                {diffRows.map((r) => (
-                  <tr key={r.fieldKey}>
-                    <td>{r.label}</td>
-                    <td>{r.aValue ?? ""}</td>
-                    <td>{r.bValue ?? ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      ) : null}
-
-      {selectedDeviceSnapshotId && configurationId ? (
-        <div style={{ marginTop: 16 }}>
-          <h2>Trends</h2>
-
-          <div style={{ display: "grid", gap: 8, maxWidth: 720 }}>
-            <div>
-              <strong>Include snapshots</strong>
-            </div>
-
-            <div style={{ display: "grid", gap: 4 }}>
-              {snapshots.map((s) => {
-                const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
-                return (
-                  <label key={s.deviceSnapshotId} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <input
-                      type="checkbox"
-                      aria-label={`Include ${s.snapshotId}`}
-                      checked={checked}
-                      onChange={(e) => {
-                        const next = e.target.checked;
-                        setTrendSnapshotIds((prev) =>
-                          next
-                            ? [...prev, s.deviceSnapshotId]
-                            : prev.filter((id) => id !== s.deviceSnapshotId)
-                        );
-                      }}
-                    />
-                    {s.snapshotId} ({s.timeStampUtc})
-                  </label>
-                );
-              })}
-            </div>
-
-            <label>
-              Trend field
-              <select
-                aria-label="Trend field"
-                value={trendFieldKey}
-                onChange={(e) => setTrendFieldKey(e.target.value)}
-              >
-                <option value="">Select…</option>
-                {trackedFieldKeys.map((k) => (
-                  <option key={k} value={k}>
-                    {k}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {trackedFieldKeys.length === 0 ? (
-              <div style={{ fontSize: 12, opacity: 0.8 }}>
-                To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Tracked fields section.
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Serial number</span>
+                  <select
+                    aria-label="Serial number"
+                    value={selectedSerialNumber}
+                    onChange={(e) => setSelectedSerialNumber(e.target.value)}
+                    disabled={!selectedProductNumber}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Select…</option>
+                    {serialNumbers.map((sn) => (
+                      <option key={sn} value={sn}>
+                        {sn}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
-            ) : null}
 
-            <button
-              type="button"
-              onClick={() => void showTrend()}
-              disabled={trendLoading || trendSnapshotIds.length === 0 || !trendFieldKey}
-            >
-              {trendLoading ? "Loading…" : "Show trend"}
-            </button>
+              {!selectedProductNumber ? (
+                <p className="text-sm text-muted-foreground">Choose a product number to load serial numbers.</p>
+              ) : !selectedSerialNumber ? (
+                <p className="text-sm text-muted-foreground">Choose a serial number to load snapshots.</p>
+              ) : null}
+            </CardContent>
+          </Card>
 
-            {trendRows.length > 0 ? (
-              <table aria-label="Trend">
-                <thead>
-                  <tr>
-                    <th>TimeStampUtc</th>
-                    <th>Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trendRows.map((r) => (
-                    <tr key={r.timeStampUtc}>
-                      <td>{r.timeStampUtc}</td>
-                      <td>{r.valueText ?? ""}</td>
-                    </tr>
+          <Card>
+            <CardHeader>
+              <CardTitle>Snapshots</CardTitle>
+              <CardDescription>
+                Click a snapshot to view it as A, then click <em>Compare</em> on another snapshot to set B.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-2 rounded-md bg-muted/40 p-3 text-sm">
+                <div>
+                  <span className="font-medium">A (view)</span>: {selectedDeviceSnapshotId || "(select a snapshot)"}
+                </div>
+                <div>
+                  <span className="font-medium">B (compare)</span>: {compareDeviceSnapshotId || "(click Compare on another snapshot)"}
+                </div>
+              </div>
+
+              {snapshots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {selectedProductNumber && selectedSerialNumber
+                    ? "No snapshots found for this selection."
+                    : "Select a product number and serial number to view snapshots."}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {snapshots.map((s) => (
+                    <div
+                      key={s.deviceSnapshotId}
+                      className="flex flex-col gap-2 rounded-md border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedDeviceSnapshotId(s.deviceSnapshotId)}
+                          className="h-auto justify-start px-2 py-1 text-left"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">{s.snapshotId}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{s.timeStampUtc}</span>
+                          </span>
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          aria-label={`Compare ${s.snapshotId}`}
+                          onClick={() => setCompareDeviceSnapshotId(s.deviceSnapshotId)}
+                          disabled={!selectedDeviceSnapshotId}
+                        >
+                          Compare
+                        </Button>
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            ) : null}
-          </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
-      ) : null}
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Field discovery</CardTitle>
+            <CardDescription>Inspect the fields present in snapshot A.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selectedDeviceSnapshotId ? (
+              <p className="text-sm text-muted-foreground">Select a snapshot to discover fields.</p>
+            ) : fields.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No fields loaded yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[45%]">Field</TableHead>
+                    <TableHead>Value</TableHead>
+                    <TableHead className="w-[8rem]">Type</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {fields.map((f) => (
+                    <TableRow key={f.fieldKey}>
+                      <TableCell className="font-mono text-xs">{f.fieldKey}</TableCell>
+                      <TableCell className="break-all">{f.valueText}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{f.valueType}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Tracked fields</CardTitle>
+            <CardDescription>
+              Choose which fields to track (per ConfigurationId). Tracked fields drive Diff and Trends.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selectedDeviceSnapshotId ? (
+              <p className="text-sm text-muted-foreground">Select a snapshot to edit tracked fields.</p>
+            ) : !configurationId ? (
+              <p className="text-sm text-muted-foreground">
+                This snapshot has no ConfigurationId field. (Expected key: <span className="font-mono">root/ConfigurationId</span>)
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium">ConfigurationId:</span>
+                  <Badge variant="outline" className="max-w-[30rem] truncate" title={configurationId}>
+                    {configurationId}
+                  </Badge>
+                </div>
+
+                {configurationFieldsLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
+
+                {!configurationFieldsLoading && configurationFields.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No fields discovered yet. Select a snapshot to discover fields, then choose which ones to track.
+                  </p>
+                ) : null}
+
+                {configurationFields.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Field key</TableHead>
+                        <TableHead className="w-[9rem]">Tracked</TableHead>
+                        <TableHead>Friendly name</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {configurationFields.map((row) => (
+                        <TableRow key={row.fieldKey}>
+                          <TableCell className="font-mono text-xs">{row.fieldKey}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                aria-label={`Tracked ${row.fieldKey}`}
+                                checked={row.tracked}
+                                onChange={(e) => {
+                                  const checked = (e.target as HTMLInputElement).checked;
+                                  setConfigurationFields((prev) =>
+                                    prev.map((p) =>
+                                      p.fieldKey === row.fieldKey ? { ...p, tracked: checked } : p
+                                    )
+                                  );
+                                }}
+                              />
+                              <span className="text-xs text-muted-foreground">Track</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              aria-label={`Friendly name ${row.fieldKey}`}
+                              value={row.friendlyName ?? ""}
+                              placeholder="Optional"
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setConfigurationFields((prev) =>
+                                  prev.map((p) =>
+                                    p.fieldKey === row.fieldKey ? { ...p, friendlyName: value } : p
+                                  )
+                                );
+                              }}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => void saveTrackedFields()}
+                    disabled={configurationFieldsSaving || configurationFieldsLoading}
+                  >
+                    {configurationFieldsSaving ? "Saving…" : "Save tracked fields"}
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Diff</CardTitle>
+            <CardDescription>Compare tracked field values between snapshot A and B.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selectedDeviceSnapshotId || !compareDeviceSnapshotId ? (
+              <p className="text-sm text-muted-foreground">Select snapshot A and B to view a diff.</p>
+            ) : configurationId && compareConfigurationId && configurationId !== compareConfigurationId ? (
+              <p className="text-sm text-muted-foreground">
+                Cannot diff snapshots with different ConfigurationId ({configurationId} vs {compareConfigurationId}).
+              </p>
+            ) : trackedFieldKeys.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No tracked fields configured for this ConfigurationId. Mark fields as tracked above, then compare again.
+              </p>
+            ) : diffRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No changes across tracked fields.</p>
+            ) : (
+              <Table aria-label="Diff">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Field</TableHead>
+                    <TableHead className="w-[30%]">A</TableHead>
+                    <TableHead className="w-[30%]">B</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {diffRows.map((r) => (
+                    <TableRow key={r.fieldKey}>
+                      <TableCell className="font-medium">{r.label}</TableCell>
+                      <TableCell className="break-all font-mono text-xs">{r.aValue ?? ""}</TableCell>
+                      <TableCell className="break-all font-mono text-xs">{r.bValue ?? ""}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Trends</CardTitle>
+            <CardDescription>Build a time series for a tracked field across selected snapshots.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!selectedDeviceSnapshotId || !configurationId ? (
+              <p className="text-sm text-muted-foreground">
+                Select a snapshot with a ConfigurationId to enable trends.
+              </p>
+            ) : (
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <div className="text-sm font-medium">Include snapshots</div>
+
+                  {snapshots.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No snapshots available.</p>
+                  ) : (
+                    <div className="grid gap-2">
+                      {snapshots.map((s) => {
+                        const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
+                        return (
+                          <label
+                            key={s.deviceSnapshotId}
+                            className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+                          >
+                            <Checkbox
+                              aria-label={`Include ${s.snapshotId}`}
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = (e.target as HTMLInputElement).checked;
+                                setTrendSnapshotIds((prev) =>
+                                  next
+                                    ? [...prev, s.deviceSnapshotId]
+                                    : prev.filter((id) => id !== s.deviceSnapshotId)
+                                );
+                              }}
+                            />
+                            <span className="min-w-0 truncate">
+                              {s.snapshotId} <span className="text-xs text-muted-foreground">({s.timeStampUtc})</span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Trend field</span>
+                  <select
+                    aria-label="Trend field"
+                    value={trendFieldKey}
+                    onChange={(e) => setTrendFieldKey(e.target.value)}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">Select…</option>
+                    {trackedFieldKeys.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {trackedFieldKeys.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Tracked fields section.
+                  </p>
+                ) : null}
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => void showTrend()}
+                    disabled={trendLoading || trendSnapshotIds.length === 0 || !trendFieldKey}
+                  >
+                    {trendLoading ? "Loading…" : "Show trend"}
+                  </Button>
+                </div>
+
+                {trendRows.length > 0 ? (
+                  <Table aria-label="Trend">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
+                        <TableHead>Value</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {trendRows.map((r) => (
+                        <TableRow key={r.timeStampUtc}>
+                          <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
+                          <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : null}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
     </div>
   );
 }

@@ -190,4 +190,60 @@ describe("createApiClient", () => {
       })
     );
   });
+
+  it("gets a time series for selected snapshots and field keys", async () => {
+    const api = createApiClient({ baseUrl: "http://example.test" });
+
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify([
+          {
+            fieldKey: "root/FirmwareVersion",
+            points: [
+              {
+                deviceSnapshotId: "ds1",
+                timeStampUtc: "2026-02-17T07:50:23.000Z",
+                valueText: "A",
+                valueType: "string"
+              }
+            ]
+          }
+        ]),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    };
+
+    const result = await api.getTimeSeries({
+      productNumber: "531285301",
+      serialNumber: "S1",
+      snapshotIds: ["ds1", "ds2"],
+      fieldKeys: ["root/FirmwareVersion"]
+    });
+
+    expect(result).toEqual([
+      {
+        fieldKey: "root/FirmwareVersion",
+        points: [
+          {
+            deviceSnapshotId: "ds1",
+            timeStampUtc: "2026-02-17T07:50:23.000Z",
+            valueText: "A",
+            valueType: "string"
+          }
+        ]
+      }
+    ]);
+
+    expect(calls[0].url).toBe("http://example.test/products/531285301/S1/timeseries");
+    expect(calls[0].init?.method).toBe("POST");
+    expect(calls[0].init?.headers).toEqual({ "content-type": "application/json" });
+    expect(calls[0].init?.body).toBe(
+      JSON.stringify({
+        snapshotIds: ["ds1", "ds2"],
+        fieldKeys: ["root/FirmwareVersion"]
+      })
+    );
+  });
 });

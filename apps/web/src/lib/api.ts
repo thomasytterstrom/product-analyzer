@@ -18,6 +18,23 @@ export type ApiClient = {
   ): Promise<
     Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName: string | null }>
   >;
+
+  getTimeSeries(input: {
+    productNumber: string;
+    serialNumber: string;
+    snapshotIds: string[];
+    fieldKeys: string[];
+  }): Promise<
+    Array<{
+      fieldKey: string;
+      points: Array<{
+        deviceSnapshotId: string;
+        timeStampUtc: string;
+        valueText: string | null;
+        valueType: string | null;
+      }>;
+    }>
+  >;
 };
 
 export function createApiClient(opts: { baseUrl: string }): ApiClient {
@@ -109,6 +126,29 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         fieldKey: string;
         tracked: boolean;
         friendlyName: string | null;
+      }>;
+    },
+
+    async getTimeSeries({ productNumber, serialNumber, snapshotIds, fieldKeys }) {
+      const res = await fetch(
+        `${baseUrl}/products/${encodeURIComponent(productNumber)}/${encodeURIComponent(serialNumber)}/timeseries`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ snapshotIds, fieldKeys })
+        }
+      );
+      if (!res.ok) {
+        throw new Error(`POST /products/:productNumber/:serialNumber/timeseries failed: ${res.status}`);
+      }
+      return (await res.json()) as Array<{
+        fieldKey: string;
+        points: Array<{
+          deviceSnapshotId: string;
+          timeStampUtc: string;
+          valueText: string | null;
+          valueType: string | null;
+        }>;
       }>;
     }
   };
