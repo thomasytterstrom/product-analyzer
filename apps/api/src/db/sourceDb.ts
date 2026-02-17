@@ -6,6 +6,14 @@ export type SourceSnapshotRow = {
   timeStampUtc: string;
 };
 
+export type SourceSnapshotHeader = {
+  deviceSnapshotId: string;
+  productNumber: string;
+  serialNumber: string;
+  snapshotId: string;
+  timeStampUtc: string;
+};
+
 export type OpenSourceDbOptions = {
   dbPath: string;
   /** Default: true */
@@ -16,6 +24,7 @@ export type SourceDb = {
   listProductNumbers(): string[];
   listSerialNumbers(productNumber: string): string[];
   listSnapshots(input: { productNumber: string; serialNumber: string }): SourceSnapshotRow[];
+  getSnapshotHeader(input: { deviceSnapshotId: string }): SourceSnapshotHeader;
   getSnapshotJson(input: { deviceSnapshotId: string }): string;
   close(): void;
 };
@@ -36,6 +45,10 @@ export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
 
   const listSnapshotsStmt = db.prepare(
     "SELECT Id as deviceSnapshotId, SnapshotId as snapshotId, TimeStampUtc as timeStampUtc FROM DeviceSnapshot WHERE ProductNumber = ? AND SerialNumber = ? ORDER BY TimeStampUtc DESC"
+  );
+
+  const getSnapshotHeaderStmt = db.prepare(
+    "SELECT Id as deviceSnapshotId, ProductNumber as productNumber, SerialNumber as serialNumber, SnapshotId as snapshotId, TimeStampUtc as timeStampUtc FROM DeviceSnapshot WHERE Id = ?"
   );
 
   return {
@@ -63,6 +76,30 @@ export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
             timeStampUtc: String(r.timeStampUtc)
           })
         );
+    },
+
+    getSnapshotHeader({ deviceSnapshotId }) {
+      const row = getSnapshotHeaderStmt.get(deviceSnapshotId) as
+        | {
+            deviceSnapshotId?: unknown;
+            productNumber?: unknown;
+            serialNumber?: unknown;
+            snapshotId?: unknown;
+            timeStampUtc?: unknown;
+          }
+        | undefined;
+
+      if (!row) {
+        throw new Error(`Snapshot not found: DeviceSnapshotId=${deviceSnapshotId}`);
+      }
+
+      return {
+        deviceSnapshotId: String(row.deviceSnapshotId),
+        productNumber: String(row.productNumber),
+        serialNumber: String(row.serialNumber),
+        snapshotId: String(row.snapshotId),
+        timeStampUtc: String(row.timeStampUtc)
+      };
     },
 
     getSnapshotJson({ deviceSnapshotId }) {

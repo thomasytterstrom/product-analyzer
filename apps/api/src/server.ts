@@ -119,6 +119,83 @@ export function buildServer(opts?: { sourceDbPath: string; metadataDbPath: strin
     return meta.listConfigurationFields({ configurationId });
   });
 
+  app.post("/products/:productNumber/:serialNumber/timeseries", async (req, reply) => {
+    if (!source) return [];
+
+    const { productNumber, serialNumber } = req.params as {
+      productNumber: string;
+      serialNumber: string;
+    };
+
+    const body = req.body as unknown;
+    const snapshotIds =
+      typeof body === "object" &&
+      body !== null &&
+      Array.isArray((body as any).snapshotIds)
+        ? ((body as any).snapshotIds as unknown[])
+        : null;
+
+    const fieldKeys =
+      typeof body === "object" &&
+      body !== null &&
+      Array.isArray((body as any).fieldKeys)
+        ? ((body as any).fieldKeys as unknown[])
+        : null;
+
+    if (!snapshotIds || !fieldKeys) {
+      reply.code(400);
+      return { error: "Invalid body: expected { snapshotIds: string[], fieldKeys: string[] }" };
+    }
+
+    const normalizedSnapshotIds = snapshotIds
+      .filter((v): v is string => typeof v === "string" && v.length > 0);
+
+    const normalizedFieldKeys = fieldKeys
+      .filter((v): v is string => typeof v === "string" && v.length > 0);
+
+    // Pre-build response buckets.
+    const buckets = new Map(
+      normalizedFieldKeys.map((fieldKey) => [fieldKey, [] as Array<{
+        deviceSnapshotId: string;
+        timeStampUtc: string;
+        valueText: string | null;
+        valueType: string | null;
+      }>] as const)
+    );
+
+    for (const deviceSnapshotId of normalizedSnapshotIds) {
+      const header = source.getSnapshotHeader({ deviceSnapshotId });
+      if (header.productNumber !== productNumber || header.serialNumber !== serialNumber) {
+        reply.code(400);
+        return {
+          error: `Snapshot ${deviceSnapshotId} does not belong to product ${productNumber} / serial ${serialNumber}`
+        };
+      }
+
+      const jsonText = source.getSnapshotJson({ deviceSnapshotId });
+      const parsed = JSON.parse(jsonText) as unknown;
+      const flat = flattenSnapshotJson(parsed);
+
+      for (const fieldKey of normalizedFieldKeys) {
+        const entry = flat[fieldKey];
+        const valueText = entry?.valueText ?? null;
+        const valueType = entry?.valueType ?? null;
+
+        buckets.get(fieldKey)?.push({
+          deviceSnapshotId,
+          timeStampUtc: header.timeStampUtc,
+          valueText,
+          valueType
+        });
+      }
+    }
+
+    return [...buckets.entries()].map(([fieldKey, points]) => {
+      points.sort((a, b) => a.timeStampUtc.localeCompare(b.timeStampUtc));
+      return { fieldKey, points };
+    });
+  });
+
   app.addHook("onClose", async () => {
     source?.close();
     meta?.close();

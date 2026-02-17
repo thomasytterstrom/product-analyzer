@@ -63,6 +63,14 @@ describe("sourceDb", () => {
     expect(snaps.map((s) => s.deviceSnapshotId)).toEqual(["ds2", "ds1"]);
     expect(snaps[0].timeStampUtc).toBe("2026-02-18T07:50:23.000Z");
 
+    expect(source.getSnapshotHeader({ deviceSnapshotId: "ds1" })).toEqual({
+      deviceSnapshotId: "ds1",
+      productNumber: "531285301",
+      serialNumber: "S1",
+      snapshotId: "snap-1",
+      timeStampUtc: "2026-02-17T07:50:23.000Z"
+    });
+
     expect(source.getSnapshotJson({ deviceSnapshotId: "ds2" })).toBe(
       JSON.stringify({ ConfigurationId: "C1" })
     );
