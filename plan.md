@@ -94,4 +94,21 @@ Follow `docs/plans/2026-02-17-separate-configure-fields-from-analysis-design.md`
 	- On “Compare” click, auto-switch to Analysis → Diff
 - [x] Step 4: Run `npm -w apps/web test` → expect PASS
 - [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 6: Commit (`feat(web): separate configure fields from analysis`)
+	- [x] Step 6: Commit (`feat(web): separate configure fields from analysis`)
+
+## Task 10: Web Trends — multi-field chart (Recharts)
+
+Follow `docs/plans/2026-02-17-trends-chart-design.md`.
+
+- [ ] Step 1: Update web UI tests to support selecting multiple trend fields and expect multiple-series rendering
+- [ ] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [ ] Step 3: Add `recharts` dependency to `apps/web`
+- [ ] Step 4: Update `apps/web/src/setupTests.ts` with a minimal `ResizeObserver` polyfill (for JSDOM)
+- [ ] Step 5: Update `apps/web/src/App.tsx` Trends to:
+	- Select multiple tracked fields (checkboxes or multi-select)
+	- POST `/timeseries` with multiple `fieldKeys`
+	- Render a single multi-line chart for numeric series
+	- Keep table output (and show non-numeric series as table-only)
+- [ ] Step 6: Run `npm -w apps/web test` → expect PASS
+- [ ] Step 7: Run `npm -w apps/web run typecheck` → expect PASS
+- [ ] Step 8: Commit (`feat(web): multi-field trends chart`)
