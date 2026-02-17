@@ -63,4 +63,55 @@ describe("App", () => {
     expect(await screen.findByText("S1")).toBeInTheDocument();
     expect(await screen.findByText("S2")).toBeInTheDocument();
   });
+
+  it("loads snapshots after selecting product number and serial number", async () => {
+    // @ts-expect-error - override global fetch for test
+    globalThis.fetch = async (url: any) => {
+      const u = String(url);
+      if (u.endsWith("/product-numbers")) {
+        return new Response(JSON.stringify(["531285301"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/serial-numbers")) {
+        return new Response(JSON.stringify(["S1"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/snapshots")) {
+        return new Response(
+          JSON.stringify([
+            {
+              deviceSnapshotId: "ds2",
+              snapshotId: "snap-2",
+              timeStampUtc: "2026-02-18T07:50:23.000Z"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    render(<App />);
+
+    // Wait for async-loaded options to exist before selecting them.
+    await screen.findByRole("option", { name: "531285301" });
+
+    const productSelect = screen.getByLabelText("Product number");
+    fireEvent.change(productSelect, { target: { value: "531285301" } });
+
+    const serialSelect = await screen.findByLabelText("Serial number");
+
+    await screen.findByRole("option", { name: "S1" });
+    fireEvent.change(serialSelect, { target: { value: "S1" } });
+
+    expect(await screen.findByText(/snap-2/)).toBeInTheDocument();
+    expect(await screen.findByText(/2026-02-18T07:50:23\.000Z/)).toBeInTheDocument();
+  });
 });
