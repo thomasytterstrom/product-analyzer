@@ -89,4 +89,4 @@ Follow `docs/plans/2026-02-17-trends-tab-web-ux.md`.
 - [x] Step 3: Update `apps/web/src/App.tsx` to render Diff/Trends under tabs (keep behavior)
 - [x] Step 4: Run `npm -w apps/web test` → expect PASS
 - [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 6: Commit (`feat(web): move trends into analysis tab`)
+- [x] Step 6: Commit (`feat(web): move trends into analysis tab`)
