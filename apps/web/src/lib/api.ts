@@ -1,6 +1,10 @@
 export type ApiClient = {
   listProductNumbers(): Promise<string[]>;
   listSerialNumbers(productNumber: string): Promise<string[]>;
+  listSnapshots(input: {
+    productNumber: string;
+    serialNumber: string;
+  }): Promise<Array<{ deviceSnapshotId: string; snapshotId: string; timeStampUtc: string }>>;
 };
 
 export function createApiClient(opts: { baseUrl: string }): ApiClient {
@@ -31,6 +35,20 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         );
       }
       return (await res.json()) as string[];
+    },
+
+    async listSnapshots({ productNumber, serialNumber }) {
+      const res = await fetch(
+        `${baseUrl}/products/${encodeURIComponent(productNumber)}/${encodeURIComponent(serialNumber)}/snapshots`
+      );
+      if (!res.ok) {
+        throw new Error(`GET /products/:productNumber/:serialNumber/snapshots failed: ${res.status}`);
+      }
+      return (await res.json()) as Array<{
+        deviceSnapshotId: string;
+        snapshotId: string;
+        timeStampUtc: string;
+      }>;
     }
   };
 }

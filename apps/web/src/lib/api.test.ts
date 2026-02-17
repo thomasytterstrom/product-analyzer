@@ -43,4 +43,41 @@ describe("createApiClient", () => {
       "http://example.test/product-numbers/531285301/serial-numbers"
     );
   });
+
+  it("lists snapshots for a product + serial", async () => {
+    const api = createApiClient({ baseUrl: "http://example.test" });
+
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    // @ts-expect-error - override global fetch for test
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify([
+          {
+            deviceSnapshotId: "ds2",
+            snapshotId: "snap-2",
+            timeStampUtc: "2026-02-18T07:50:23.000Z"
+          }
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      );
+    };
+
+    const result = await api.listSnapshots({
+      productNumber: "531285301",
+      serialNumber: "S1"
+    });
+
+    expect(result).toEqual([
+      {
+        deviceSnapshotId: "ds2",
+        snapshotId: "snap-2",
+        timeStampUtc: "2026-02-18T07:50:23.000Z"
+      }
+    ]);
+    expect(calls[0].url).toBe("http://example.test/products/531285301/S1/snapshots");
+  });
 });
