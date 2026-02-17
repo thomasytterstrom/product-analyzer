@@ -2,8 +2,27 @@
   "name": "@product-analyzer/web",
   "private": true,
   "type": "module",
+  "version": "0.0.0",
   "scripts": {
-    "dev": "node -e \"console.log('web dev placeholder (Vite not scaffolded yet)')\"",
-    "test": "node -e \"console.log('web: no tests yet')\""
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.2.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^26.0.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.8"
   }
 }

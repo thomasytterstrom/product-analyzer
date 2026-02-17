@@ -26,4 +26,4 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 ## Task 4+: API + UI
 - [x] DB access modules
 - [x] Fastify server + endpoints
-- [ ] Web UI
+- [ ] Web UI (in progress)
