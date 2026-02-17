@@ -2,7 +2,7 @@ import Fastify from "fastify";
 
 import { openMetadataDb } from "./db/metadataDb.js";
 import { openSourceDb } from "./db/sourceDb.js";
-import { flattenSnapshotJson } from "@product-analyzer/shared";
+import { diffAttributes, flattenSnapshotJson } from "@product-analyzer/shared";
 
 export function buildServer(opts?: { sourceDbPath: string; metadataDbPath: string }) {
   const app = Fastify({ logger: false });
@@ -117,6 +117,104 @@ export function buildServer(opts?: { sourceDbPath: string; metadataDbPath: strin
     });
 
     return meta.listConfigurationFields({ configurationId });
+  });
+
+
+  app.get("/products/:productNumber/:serialNumber/diff", async (req, reply) => {
+    if (!source) {
+      reply.code(500);
+      return { error: "Source DB not configured" };
+    }
+    if (!meta) {
+      reply.code(500);
+      return { error: "Metadata DB not configured" };
+    }
+
+    const { productNumber, serialNumber } = req.params as {
+      productNumber: string;
+      serialNumber: string;
+    };
+
+    const query = req.query as unknown;
+    const snapshotA =
+      typeof query === "object" && query !== null ? ((query as any).snapshotA as unknown) : null;
+    const snapshotB =
+      typeof query === "object" && query !== null ? ((query as any).snapshotB as unknown) : null;
+
+    if (typeof snapshotA !== "string" || snapshotA.length === 0) {
+      reply.code(400);
+      return { error: "Missing query param: snapshotA" };
+    }
+    if (typeof snapshotB !== "string" || snapshotB.length === 0) {
+      reply.code(400);
+      return { error: "Missing query param: snapshotB" };
+    }
+
+    const headerA = source.getSnapshotHeader({ deviceSnapshotId: snapshotA });
+    const headerB = source.getSnapshotHeader({ deviceSnapshotId: snapshotB });
+
+    if (headerA.productNumber !== productNumber || headerA.serialNumber !== serialNumber) {
+      reply.code(400);
+      return {
+        error: `Snapshot ${snapshotA} does not belong to product ${productNumber} / serial ${serialNumber}`
+      };
+    }
+
+    if (headerB.productNumber !== productNumber || headerB.serialNumber !== serialNumber) {
+      reply.code(400);
+      return {
+        error: `Snapshot ${snapshotB} does not belong to product ${productNumber} / serial ${serialNumber}`
+      };
+    }
+
+    const flatA = flattenSnapshotJson(JSON.parse(source.getSnapshotJson({ deviceSnapshotId: snapshotA })));
+    const flatB = flattenSnapshotJson(JSON.parse(source.getSnapshotJson({ deviceSnapshotId: snapshotB })));
+
+    const configurationIdA = flatA["root/ConfigurationId"]?.valueText?.trim() ?? "";
+    const configurationIdB = flatB["root/ConfigurationId"]?.valueText?.trim() ?? "";
+
+    if (!configurationIdA || !configurationIdB) {
+      reply.code(400);
+      return { error: "Missing ConfigurationId on one or both snapshots" };
+    }
+
+    if (configurationIdA !== configurationIdB) {
+      reply.code(400);
+      return { error: `Snapshots have different ConfigurationId (${configurationIdA} vs ${configurationIdB})` };
+    }
+
+    const configurationId = configurationIdA;
+
+    const trackedKeys = meta
+      .listConfigurationFields({ configurationId })
+      .filter((r) => r.tracked)
+      .map((r) => r.fieldKey);
+
+    const a: Record<string, string | null | undefined> = {};
+    const b: Record<string, string | null | undefined> = {};
+
+    for (const key of trackedKeys) {
+      const ea = flatA[key];
+      const eb = flatB[key];
+
+      if (ea !== undefined) a[key] = ea.valueText ?? null;
+      if (eb !== undefined) b[key] = eb.valueText ?? null;
+    }
+
+    return {
+      configurationId,
+      snapshotA: {
+        deviceSnapshotId: headerA.deviceSnapshotId,
+        snapshotId: headerA.snapshotId,
+        timeStampUtc: headerA.timeStampUtc
+      },
+      snapshotB: {
+        deviceSnapshotId: headerB.deviceSnapshotId,
+        snapshotId: headerB.snapshotId,
+        timeStampUtc: headerB.timeStampUtc
+      },
+      diff: diffAttributes(a, b)
+    };
   });
 
   app.post("/products/:productNumber/:serialNumber/timeseries", async (req, reply) => {

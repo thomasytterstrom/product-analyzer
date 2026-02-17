@@ -25,12 +25,29 @@ export default function App() {
     Array<{ fieldKey: string; valueText: string; valueType: string }>
   >([]);
 
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffRows, setDiffRows] = useState<
+    Array<{ fieldKey: string; aValue: string | null; bValue: string | null }>
+  >([]);
+
   const [trendSnapshotIds, setTrendSnapshotIds] = useState<string[]>([]);
   const [trendFieldKey, setTrendFieldKey] = useState<string>("");
   const [trendRows, setTrendRows] = useState<Array<{ timeStampUtc: string; valueText: string | null }>>(
     []
   );
   const [trendLoading, setTrendLoading] = useState(false);
+
+  const numericTrendPoints = trendRows
+    .map((r) => {
+      const raw = r.valueText ?? "";
+      const n = Number.parseFloat(String(raw));
+      return {
+        timeStampUtc: r.timeStampUtc,
+        valueText: r.valueText,
+        valueNumber: Number.isFinite(n) ? n : null
+      };
+    })
+    .filter((p) => p.valueNumber !== null);
 
   const configurationId =
     fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
@@ -212,21 +229,75 @@ export default function App() {
       .map((f) => [f.fieldKey, f.friendlyName] as const)
   );
 
-  const aValueByKey = new Map(fields.map((f) => [f.fieldKey, f.valueText] as const));
-  const bValueByKey = new Map(compareFields.map((f) => [f.fieldKey, f.valueText] as const));
+  useEffect(() => {
+    if (!selectedDeviceSnapshotId || !compareDeviceSnapshotId) {
+      setDiffRows([]);
+      setDiffLoading(false);
+      return;
+    }
+    if (!selectedProductNumber || !selectedSerialNumber) {
+      setDiffRows([]);
+      setDiffLoading(false);
+      return;
+    }
+    if (configurationId && compareConfigurationId && configurationId !== compareConfigurationId) {
+      setDiffRows([]);
+      setDiffLoading(false);
+      return;
+    }
+    if (configurationFieldsLoading) {
+      setDiffRows([]);
+      return;
+    }
+    if (trackedFieldKeys.length === 0) {
+      setDiffRows([]);
+      setDiffLoading(false);
+      return;
+    }
 
-  const diffRows = trackedFieldKeys
-    .map((fieldKey) => {
-      const aValue = aValueByKey.get(fieldKey) ?? null;
-      const bValue = bValueByKey.get(fieldKey) ?? null;
-      return {
-        fieldKey,
-        label: trackedFriendlyNameByKey.get(fieldKey) ?? fieldKey,
-        aValue,
-        bValue
-      };
-    })
-    .filter((r) => r.aValue !== r.bValue);
+    const api = createApiClient({ baseUrl: "" });
+    let active = true;
+    setDiffLoading(true);
+    void api
+      .getDiff({
+        productNumber: selectedProductNumber,
+        serialNumber: selectedSerialNumber,
+        snapshotA: selectedDeviceSnapshotId,
+        snapshotB: compareDeviceSnapshotId
+      })
+      .then((res) => {
+        if (!active) return;
+
+        const rows: Array<{ fieldKey: string; aValue: string | null; bValue: string | null }> = [];
+        for (const c of res.diff.changed) rows.push({ fieldKey: c.key, aValue: c.from, bValue: c.to });
+        for (const a of res.diff.added) rows.push({ fieldKey: a.key, aValue: null, bValue: a.to });
+        for (const r of res.diff.removed) rows.push({ fieldKey: r.key, aValue: r.from, bValue: null });
+
+        rows.sort((x, y) => x.fieldKey.localeCompare(y.fieldKey));
+        setDiffRows(rows);
+      })
+      .catch(() => {
+        if (!active) return;
+        setDiffRows([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setDiffLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    selectedDeviceSnapshotId,
+    compareDeviceSnapshotId,
+    selectedProductNumber,
+    selectedSerialNumber,
+    configurationId,
+    compareConfigurationId,
+    configurationFieldsLoading,
+    trackedFieldKeys.join("|")
+  ]);
 
   async function showTrend() {
     if (!trendFieldKey) return;
@@ -626,6 +697,8 @@ export default function App() {
               <p className="text-sm text-muted-foreground">
                 No tracked fields configured for this ConfigurationId. Mark fields as tracked above, then compare again.
               </p>
+            ) : diffLoading ? (
+              <p className="text-sm text-muted-foreground">Loading diff…</p>
             ) : diffRows.length === 0 ? (
               <p className="text-sm text-muted-foreground">No changes across tracked fields.</p>
             ) : (
@@ -640,7 +713,7 @@ export default function App() {
                 <TableBody>
                   {diffRows.map((r) => (
                     <TableRow key={r.fieldKey}>
-                      <TableCell className="font-medium">{r.label}</TableCell>
+                      <TableCell className="font-medium">{trackedFriendlyNameByKey.get(r.fieldKey) ?? r.fieldKey}</TableCell>
                       <TableCell className="break-all font-mono text-xs">{r.aValue ?? ""}</TableCell>
                       <TableCell className="break-all font-mono text-xs">{r.bValue ?? ""}</TableCell>
                     </TableRow>
@@ -733,22 +806,101 @@ export default function App() {
                 </div>
 
                 {trendRows.length > 0 ? (
-                  <Table aria-label="Trend">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
-                        <TableHead>Value</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {trendRows.map((r) => (
-                        <TableRow key={r.timeStampUtc}>
-                          <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
-                          <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
+                  <div className="space-y-3">
+                    {numericTrendPoints.length >= 2 ? (
+                      (() => {
+                        const width = 640;
+                        const height = 200;
+                        const padX = 24;
+                        const padY = 24;
+
+                        const values = numericTrendPoints.map((p) => p.valueNumber as number);
+                        let minY = Math.min(...values);
+                        let maxY = Math.max(...values);
+                        if (minY === maxY) {
+                          minY -= 1;
+                          maxY += 1;
+                        }
+
+                        const plotW = width - padX * 2;
+                        const plotH = height - padY * 2;
+                        const stepX = numericTrendPoints.length <= 1 ? 0 : plotW / (numericTrendPoints.length - 1);
+
+                        const points = numericTrendPoints.map((p, idx) => {
+                          const x = padX + idx * stepX;
+                          const t = ((p.valueNumber as number) - minY) / (maxY - minY);
+                          const y = padY + (1 - t) * plotH;
+                          return { x, y };
+                        });
+
+                        const d = points
+                          .map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`)
+                          .join(" ");
+
+                        return (
+                          <div className="rounded-md border bg-background p-3">
+                            <svg
+                              aria-label="Trend chart"
+                              role="img"
+                              viewBox={`0 0 ${width} ${height}`}
+                              className="h-48 w-full"
+                            >
+                              <title>Trend chart</title>
+                              <rect x="0" y="0" width={width} height={height} fill="transparent" />
+
+                              {/* grid */}
+                              <line
+                                x1={padX}
+                                y1={padY}
+                                x2={padX}
+                                y2={height - padY}
+                                stroke="currentColor"
+                                opacity="0.15"
+                              />
+                              <line
+                                x1={padX}
+                                y1={height - padY}
+                                x2={width - padX}
+                                y2={height - padY}
+                                stroke="currentColor"
+                                opacity="0.15"
+                              />
+
+                              {/* line */}
+                              <path d={d} fill="none" stroke="currentColor" strokeWidth="2" opacity="0.9" />
+                              {points.map((pt, idx) => (
+                                <circle
+                                  key={idx}
+                                  cx={pt.x}
+                                  cy={pt.y}
+                                  r="4"
+                                  fill="currentColor"
+                                  opacity="0.95"
+                                />
+                              ))}
+                            </svg>
+                          </div>
+                        );
+                      })()
+                    ) : null}
+
+                    <Table aria-label="Trend">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
+                          <TableHead>Value</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {trendRows.map((r) => (
+                          <TableRow key={r.timeStampUtc}>
+                            <TableCell className="font-mono text-xs">{r.timeStampUtc}</TableCell>
+                            <TableCell className="break-all font-mono text-xs">{r.valueText ?? ""}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 ) : null}
               </div>
             )}

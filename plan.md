@@ -51,8 +51,11 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Step 3: Confirm `lucide-react` is unused in `apps/web/src/**` and remove dependency + lockfile entry
 - [x] Step 4: Run `npm -w apps/web test` + `npm -w apps/web run typecheck` → expect PASS
 - [x] Step 5: Commit (`chore(web): fix card typings`)
+- [x] Step 6: Re-review commit `5e7c3e2145e3ce2f9b9170944716298a148f4721` (CardTitle ref typing + guard + dependency removal) → run repo tests + typecheck → expect PASS
 
 ## Follow-ups
 - [x] Code quality review: UI polish (Tailwind + shadcn/ui) in `apps/web`
-- [ ] Manual run against real DB
-- [ ] Optional: add server-side diff/timeseries endpoints and switch UI to them
+- [x] Manual run against real DB
+- [x] Add server-side timeseries endpoint and switch UI trends to it
+- [x] Optional: add server-side diff endpoint and switch UI to it
+- [x] Plot numeric trend values as a chart in the UI

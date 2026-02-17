@@ -19,6 +19,24 @@ export type ApiClient = {
     Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName: string | null }>
   >;
 
+
+  getDiff(input: {
+    productNumber: string;
+    serialNumber: string;
+    snapshotA: string;
+    snapshotB: string;
+  }): Promise<{
+    configurationId: string;
+    snapshotA: { deviceSnapshotId: string; snapshotId: string; timeStampUtc: string };
+    snapshotB: { deviceSnapshotId: string; snapshotId: string; timeStampUtc: string };
+    diff: {
+      added: Array<{ key: string; to: string | null }>;
+      removed: Array<{ key: string; from: string | null }>;
+      changed: Array<{ key: string; from: string | null; to: string | null }>;
+      unchanged: Array<{ key: string; value: string | null }>;
+    };
+  }>;
+
   getTimeSeries(input: {
     productNumber: string;
     serialNumber: string;
@@ -127,6 +145,34 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         tracked: boolean;
         friendlyName: string | null;
       }>;
+    },
+
+    async getDiff({ productNumber, serialNumber, snapshotA, snapshotB }) {
+      const res = await fetch(
+        baseUrl +
+          "/products/" +
+          encodeURIComponent(productNumber) +
+          "/" +
+          encodeURIComponent(serialNumber) +
+          "/diff?snapshotA=" +
+          encodeURIComponent(snapshotA) +
+          "&snapshotB=" +
+          encodeURIComponent(snapshotB)
+      );
+      if (!res.ok) {
+        throw new Error("GET /products/:productNumber/:serialNumber/diff failed: " + res.status);
+      }
+      return (await res.json()) as {
+        configurationId: string;
+        snapshotA: { deviceSnapshotId: string; snapshotId: string; timeStampUtc: string };
+        snapshotB: { deviceSnapshotId: string; snapshotId: string; timeStampUtc: string };
+        diff: {
+          added: Array<{ key: string; to: string | null }>;
+          removed: Array<{ key: string; from: string | null }>;
+          changed: Array<{ key: string; from: string | null; to: string | null }>;
+          unchanged: Array<{ key: string; value: string | null }>;
+        };
+      };
     },
 
     async getTimeSeries({ productNumber, serialNumber, snapshotIds, fieldKeys }) {

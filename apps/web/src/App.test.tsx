@@ -107,7 +107,34 @@ describe("App", () => {
           }
         );
       }
-      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+
+      if (u.includes("/products/531285301/S1/diff")) {
+        return new Response(
+          JSON.stringify({
+            configurationId: "cfg-1",
+            snapshotA: {
+              deviceSnapshotId: "ds1",
+              snapshotId: "snap-1",
+              timeStampUtc: "2026-02-17T07:50:23.000Z"
+            },
+            snapshotB: {
+              deviceSnapshotId: "ds2",
+              snapshotId: "snap-2",
+              timeStampUtc: "2026-02-18T07:50:23.000Z"
+            },
+            diff: {
+              added: [],
+              removed: [],
+              changed: [{ key: "root/FirmwareVersion", from: "A", to: "B" }],
+              unchanged: []
+            }
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
     };
 
     render(<App />);
@@ -665,7 +692,15 @@ describe("App", () => {
         );
       }
 
-      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+      return new Response(
+  JSON.stringify({
+    configurationId: "cfg-1",
+    snapshotA: { deviceSnapshotId: "ds1", snapshotId: "snap-1", timeStampUtc: "2026-02-17T07:50:23.000Z" },
+    snapshotB: { deviceSnapshotId: "ds2", snapshotId: "snap-2", timeStampUtc: "2026-02-18T07:50:23.000Z" },
+    diff: { added: [], removed: [], changed: [{ key: "root/FirmwareVersion", from: "A", to: "B" }], unchanged: [] }
+  }),
+  { status: 200, headers: { "content-type": "application/json" } }
+);
     };
 
     render(<App />);
@@ -697,6 +732,8 @@ describe("App", () => {
 
     expect(calls.some((c) => c.includes("/snapshots/ds1/fields"))).toBe(true);
     expect(calls.some((c) => c.includes("/snapshots/ds2/fields"))).toBe(true);
+
+    expect(calls.some((c) => c.includes("/products/531285301/S1/diff"))).toBe(true);
   });
 
   it("shows a trend (time series) for a tracked field across selected snapshots", async () => {
@@ -844,5 +881,139 @@ describe("App", () => {
       c.url.includes("/products/531285301/S1/timeseries") && c.init?.method === "POST"
     );
     expect(post).toBeTruthy();
+  });
+
+  it("plots numeric trend values on a chart", async () => {
+    globalThis.fetch = async (url: any, init?: any) => {
+      const u = String(url);
+
+      if (u.endsWith("/product-numbers")) {
+        return new Response(JSON.stringify(["531285301"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/serial-numbers")) {
+        return new Response(JSON.stringify(["S1"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/products/") && u.includes("/snapshots")) {
+        return new Response(
+          JSON.stringify([
+            {
+              deviceSnapshotId: "ds2",
+              snapshotId: "snap-2",
+              timeStampUtc: "2026-02-18T07:50:23.000Z"
+            },
+            {
+              deviceSnapshotId: "ds1",
+              snapshotId: "snap-1",
+              timeStampUtc: "2026-02-17T07:50:23.000Z"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      // Snapshot A (selected) => provides ConfigurationId
+      if (u.includes("/snapshots/ds1/fields")) {
+        return new Response(
+          JSON.stringify([
+            { fieldKey: "root/ConfigurationId", valueText: "cfg-1", valueType: "string" },
+            { fieldKey: "root/FirmwareVersion", valueText: "1", valueType: "number" }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+      if (u.includes("/snapshots/ds2/fields")) {
+        return new Response(
+          JSON.stringify([
+            { fieldKey: "root/ConfigurationId", valueText: "cfg-1", valueType: "string" },
+            { fieldKey: "root/FirmwareVersion", valueText: "2", valueType: "number" }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      if (u.includes("/products/531285301/S1/timeseries") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify([
+            {
+              fieldKey: "root/FirmwareVersion",
+              points: [
+                {
+                  deviceSnapshotId: "ds1",
+                  timeStampUtc: "2026-02-17T07:50:23.000Z",
+                  valueText: "1",
+                  valueType: "number"
+                },
+                {
+                  deviceSnapshotId: "ds2",
+                  timeStampUtc: "2026-02-18T07:50:23.000Z",
+                  valueText: "2",
+                  valueType: "number"
+                }
+              ]
+            }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      if (u.includes("/configurations/cfg-1/fields")) {
+        return new Response(
+          JSON.stringify([
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/FirmwareVersion",
+              tracked: true,
+              friendlyName: "FW"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    render(<App />);
+
+    await screen.findByRole("option", { name: "531285301" });
+    fireEvent.change(screen.getByLabelText("Product number"), {
+      target: { value: "531285301" }
+    });
+
+    await screen.findByRole("option", { name: "S1" });
+    fireEvent.change(screen.getByLabelText("Serial number"), {
+      target: { value: "S1" }
+    });
+
+    // Select snapshot A
+    fireEvent.click(await screen.findByText(/snap-1/));
+
+    // Select snapshots to include in the trend
+    fireEvent.click(await screen.findByLabelText("Include snap-1"));
+    fireEvent.click(await screen.findByLabelText("Include snap-2"));
+
+    // Choose tracked field
+    fireEvent.change(await screen.findByLabelText("Trend field"), {
+      target: { value: "root/FirmwareVersion" }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /show trend/i }));
+
+    const svg = (await screen.findByLabelText("Trend chart")) as unknown as SVGElement;
+    expect(svg.tagName.toLowerCase()).toBe("svg");
+    expect(svg.querySelectorAll("circle").length).toBe(2);
+    expect(svg.querySelectorAll("path").length).toBeGreaterThan(0);
   });
 });
