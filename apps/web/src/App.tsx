@@ -11,12 +11,19 @@ export default function App() {
     Array<{ deviceSnapshotId: string; snapshotId: string; timeStampUtc: string }>
   >([]);
   const [selectedDeviceSnapshotId, setSelectedDeviceSnapshotId] = useState<string>("");
+  const [compareDeviceSnapshotId, setCompareDeviceSnapshotId] = useState<string>("");
   const [fields, setFields] = useState<
+    Array<{ fieldKey: string; valueText: string; valueType: string }>
+  >([]);
+  const [compareFields, setCompareFields] = useState<
     Array<{ fieldKey: string; valueText: string; valueType: string }>
   >([]);
 
   const configurationId =
     fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
+
+  const compareConfigurationId =
+    compareFields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
 
   const [configurationFields, setConfigurationFields] = useState<
     Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName: string | null }>
@@ -35,7 +42,9 @@ export default function App() {
       setSelectedSerialNumber("");
       setSnapshots([]);
       setSelectedDeviceSnapshotId("");
+      setCompareDeviceSnapshotId("");
       setFields([]);
+      setCompareFields([]);
       return;
     }
 
@@ -45,7 +54,9 @@ export default function App() {
       setSelectedSerialNumber("");
       setSnapshots([]);
       setSelectedDeviceSnapshotId("");
+      setCompareDeviceSnapshotId("");
       setFields([]);
+      setCompareFields([]);
     });
   }, [selectedProductNumber]);
 
@@ -53,7 +64,9 @@ export default function App() {
     if (!selectedProductNumber || !selectedSerialNumber) {
       setSnapshots([]);
       setSelectedDeviceSnapshotId("");
+      setCompareDeviceSnapshotId("");
       setFields([]);
+      setCompareFields([]);
       return;
     }
 
@@ -66,7 +79,9 @@ export default function App() {
       .then((ss) => {
         setSnapshots(ss);
         setSelectedDeviceSnapshotId("");
+        setCompareDeviceSnapshotId("");
         setFields([]);
+        setCompareFields([]);
       });
   }, [selectedProductNumber, selectedSerialNumber]);
 
@@ -79,6 +94,40 @@ export default function App() {
     const api = createApiClient({ baseUrl: "" });
     void api.getSnapshotFields(selectedDeviceSnapshotId).then(setFields);
   }, [selectedDeviceSnapshotId]);
+
+  useEffect(() => {
+    if (!compareDeviceSnapshotId) {
+      setCompareFields([]);
+      return;
+    }
+
+    const api = createApiClient({ baseUrl: "" });
+    void api.getSnapshotFields(compareDeviceSnapshotId).then(setCompareFields);
+  }, [compareDeviceSnapshotId]);
+
+  const trackedFieldKeys = configurationFields.filter((f) => f.tracked).map((f) => f.fieldKey);
+
+  const trackedFriendlyNameByKey = new Map(
+    configurationFields
+      .filter((f) => f.tracked)
+      .map((f) => [f.fieldKey, f.friendlyName] as const)
+  );
+
+  const aValueByKey = new Map(fields.map((f) => [f.fieldKey, f.valueText] as const));
+  const bValueByKey = new Map(compareFields.map((f) => [f.fieldKey, f.valueText] as const));
+
+  const diffRows = trackedFieldKeys
+    .map((fieldKey) => {
+      const aValue = aValueByKey.get(fieldKey) ?? null;
+      const bValue = bValueByKey.get(fieldKey) ?? null;
+      return {
+        fieldKey,
+        label: trackedFriendlyNameByKey.get(fieldKey) ?? fieldKey,
+        aValue,
+        bValue
+      };
+    })
+    .filter((r) => r.aValue !== r.bValue);
 
   useEffect(() => {
     if (!configurationId) {
@@ -167,6 +216,16 @@ export default function App() {
                 onClick={() => setSelectedDeviceSnapshotId(s.deviceSnapshotId)}
               >
                 {s.snapshotId} — {s.timeStampUtc}
+              </button>
+
+              <button
+                type="button"
+                aria-label={`Compare ${s.snapshotId}`}
+                onClick={() => setCompareDeviceSnapshotId(s.deviceSnapshotId)}
+                style={{ marginLeft: 8 }}
+                disabled={!selectedDeviceSnapshotId}
+              >
+                Compare
               </button>
             </li>
           ))}
@@ -258,6 +317,41 @@ export default function App() {
               {configurationFieldsSaving ? "Saving…" : "Save tracked fields"}
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {selectedDeviceSnapshotId && compareDeviceSnapshotId ? (
+        <div style={{ marginTop: 16 }}>
+          <h2>Diff</h2>
+
+          {configurationId && compareConfigurationId && configurationId !== compareConfigurationId ? (
+            <div>
+              Cannot diff snapshots with different ConfigurationId ({configurationId} vs {compareConfigurationId}).
+            </div>
+          ) : trackedFieldKeys.length === 0 ? (
+            <div>No tracked fields configured for this ConfigurationId.</div>
+          ) : diffRows.length === 0 ? (
+            <div>No changes across tracked fields.</div>
+          ) : (
+            <table aria-label="Diff">
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>A</th>
+                  <th>B</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diffRows.map((r) => (
+                  <tr key={r.fieldKey}>
+                    <td>{r.label}</td>
+                    <td>{r.aValue ?? ""}</td>
+                    <td>{r.bValue ?? ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       ) : null}
     </div>
