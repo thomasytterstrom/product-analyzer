@@ -59,6 +59,66 @@ export function buildServer(opts?: { sourceDbPath: string; metadataDbPath: strin
       .map((fieldKey) => ({ fieldKey, ...flat[fieldKey] }));
   });
 
+  app.get("/configurations/:configurationId/fields", async (req) => {
+    if (!meta) return [];
+    const { configurationId } = req.params as { configurationId: string };
+    return meta.listConfigurationFields({ configurationId });
+  });
+
+  app.put("/configurations/:configurationId/fields", async (req, reply) => {
+    if (!meta) return [];
+
+    const { configurationId } = req.params as { configurationId: string };
+    const body = req.body as unknown;
+
+    const fields =
+      typeof body === "object" &&
+      body !== null &&
+      Array.isArray((body as any).fields)
+        ? ((body as any).fields as unknown[])
+        : null;
+
+    if (!fields) {
+      reply.code(400);
+      return { error: "Invalid body: expected { fields: [...] }" };
+    }
+
+    const normalizedFields: Array<{
+      fieldKey: string;
+      tracked: boolean;
+      friendlyName?: string | null;
+    }> = [];
+
+    for (const f of fields) {
+      if (typeof f !== "object" || f === null) continue;
+
+      const fieldKey = (f as any).fieldKey;
+      const tracked = (f as any).tracked;
+      const friendlyName = (f as any).friendlyName;
+
+      if (typeof fieldKey !== "string" || fieldKey.length === 0) continue;
+      if (typeof tracked !== "boolean") continue;
+
+      normalizedFields.push({
+        fieldKey,
+        tracked,
+        friendlyName:
+          friendlyName === undefined || friendlyName === null
+            ? null
+            : typeof friendlyName === "string"
+              ? friendlyName
+              : String(friendlyName)
+      });
+    }
+
+    meta.upsertConfigurationFields({
+      configurationId,
+      fields: normalizedFields
+    });
+
+    return meta.listConfigurationFields({ configurationId });
+  });
+
   app.addHook("onClose", async () => {
     source?.close();
     meta?.close();

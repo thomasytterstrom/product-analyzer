@@ -27,6 +27,7 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] DB access modules
 - [x] Fastify server + endpoints
 - [x] Dev server reads env + connects SQLite
+- [x] Task 7: Metadata endpoints (tracked fields + friendly names)
 - [ ] Web UI (in progress)
 	- [x] Web API client: `getSnapshotFields(deviceSnapshotId)`
 	- [x] Web UI: show snapshot fields (parameter discovery)
