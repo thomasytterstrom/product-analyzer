@@ -33,7 +33,15 @@ export default function App() {
 
   useEffect(() => {
     const api = createApiClient({ baseUrl: "" });
-    void api.listProductNumbers().then(setProductNumbers);
+    let active = true;
+    void api.listProductNumbers().then((pns) => {
+      if (!active) return;
+      setProductNumbers(pns);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -49,7 +57,9 @@ export default function App() {
     }
 
     const api = createApiClient({ baseUrl: "" });
+    let active = true;
     void api.listSerialNumbers(selectedProductNumber).then((sns) => {
+      if (!active) return;
       setSerialNumbers(sns);
       setSelectedSerialNumber("");
       setSnapshots([]);
@@ -58,6 +68,10 @@ export default function App() {
       setFields([]);
       setCompareFields([]);
     });
+
+    return () => {
+      active = false;
+    };
   }, [selectedProductNumber]);
 
   useEffect(() => {
@@ -71,18 +85,24 @@ export default function App() {
     }
 
     const api = createApiClient({ baseUrl: "" });
+    let active = true;
     void api
       .listSnapshots({
         productNumber: selectedProductNumber,
         serialNumber: selectedSerialNumber
       })
       .then((ss) => {
+        if (!active) return;
         setSnapshots(ss);
         setSelectedDeviceSnapshotId("");
         setCompareDeviceSnapshotId("");
         setFields([]);
         setCompareFields([]);
       });
+
+    return () => {
+      active = false;
+    };
   }, [selectedProductNumber, selectedSerialNumber]);
 
   useEffect(() => {
@@ -92,7 +112,15 @@ export default function App() {
     }
 
     const api = createApiClient({ baseUrl: "" });
-    void api.getSnapshotFields(selectedDeviceSnapshotId).then(setFields);
+    let active = true;
+    void api.getSnapshotFields(selectedDeviceSnapshotId).then((fs) => {
+      if (!active) return;
+      setFields(fs);
+    });
+
+    return () => {
+      active = false;
+    };
   }, [selectedDeviceSnapshotId]);
 
   useEffect(() => {
@@ -102,7 +130,15 @@ export default function App() {
     }
 
     const api = createApiClient({ baseUrl: "" });
-    void api.getSnapshotFields(compareDeviceSnapshotId).then(setCompareFields);
+    let active = true;
+    void api.getSnapshotFields(compareDeviceSnapshotId).then((fs) => {
+      if (!active) return;
+      setCompareFields(fs);
+    });
+
+    return () => {
+      active = false;
+    };
   }, [compareDeviceSnapshotId]);
 
   const trackedFieldKeys = configurationFields.filter((f) => f.tracked).map((f) => f.fieldKey);
@@ -137,11 +173,22 @@ export default function App() {
     }
 
     const api = createApiClient({ baseUrl: "" });
+    let active = true;
     setConfigurationFieldsLoading(true);
     void api
       .getConfigurationFields(configurationId)
-      .then(setConfigurationFields)
-      .finally(() => setConfigurationFieldsLoading(false));
+      .then((rows) => {
+        if (!active) return;
+        setConfigurationFields(rows);
+      })
+      .finally(() => {
+        if (!active) return;
+        setConfigurationFieldsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [configurationId]);
 
   async function saveTrackedFields() {
