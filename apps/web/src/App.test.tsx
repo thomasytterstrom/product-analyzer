@@ -326,6 +326,7 @@ describe("App", () => {
     // We use a fixed table layout so column widths are honored (otherwise the long field keys
     // can steal all horizontal space and Friendly name won't visually grow).
     expect(table).toHaveClass("table-fixed");
+    expect(table).toHaveClass("min-w-[60rem]");
 
     expect(tableWithin.getByRole("columnheader", { name: /field key/i })).toBeInTheDocument();
 

@@ -742,7 +742,7 @@ export default function App() {
                         />
                       </label>
 
-                      <Table aria-label="Fields (Snapshot A)" className="table-fixed">
+                      <Table aria-label="Fields (Snapshot A)" className="table-fixed min-w-[60rem]">
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-[34%]">Field key</TableHead>
