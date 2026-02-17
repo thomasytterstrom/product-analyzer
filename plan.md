@@ -45,6 +45,14 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Step 5: Run `npm -w apps/web test` + `npm -w apps/web run typecheck` → expect PASS
 - [x] Step 6: Commit (`feat(web): add tailwind + shadcn ui`)
 
+## Task 6: Code quality review fixes (web)
+- [x] Step 1: Add typecheck guard for `CardTitle` ref element type → run typecheck → expect FAIL
+- [x] Step 2: Fix `CardTitle` forwardRef typing in `apps/web/src/components/ui/card.tsx` → run typecheck → expect PASS
+- [x] Step 3: Confirm `lucide-react` is unused in `apps/web/src/**` and remove dependency + lockfile entry
+- [x] Step 4: Run `npm -w apps/web test` + `npm -w apps/web run typecheck` → expect PASS
+- [x] Step 5: Commit (`chore(web): fix card typings`)
+
 ## Follow-ups
+- [x] Code quality review: UI polish (Tailwind + shadcn/ui) in `apps/web`
 - [ ] Manual run against real DB
 - [ ] Optional: add server-side diff/timeseries endpoints and switch UI to them
