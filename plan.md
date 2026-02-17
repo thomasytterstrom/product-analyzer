@@ -126,4 +126,4 @@ Follow `docs/plans/2026-02-17-trends-chart-design.md`.
 	- Keep table output (and show non-numeric series as table-only)
 - [x] Step 6: Run `npm -w apps/web test` → expect PASS
 - [x] Step 7: Run `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 8: Commit (`feat(web): multi-field trends chart`)
+- [x] Step 8: Commit (`feat(web): multi-field trends chart`)
