@@ -19,6 +19,13 @@ export default function App() {
     Array<{ fieldKey: string; valueText: string; valueType: string }>
   >([]);
 
+  const [trendSnapshotIds, setTrendSnapshotIds] = useState<string[]>([]);
+  const [trendFieldKey, setTrendFieldKey] = useState<string>("");
+  const [trendRows, setTrendRows] = useState<Array<{ timeStampUtc: string; valueText: string | null }>>(
+    []
+  );
+  const [trendLoading, setTrendLoading] = useState(false);
+
   const configurationId =
     fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
 
@@ -53,6 +60,11 @@ export default function App() {
       setCompareDeviceSnapshotId("");
       setFields([]);
       setCompareFields([]);
+
+      setTrendSnapshotIds([]);
+      setTrendFieldKey("");
+      setTrendRows([]);
+      setTrendLoading(false);
       return;
     }
 
@@ -67,6 +79,11 @@ export default function App() {
       setCompareDeviceSnapshotId("");
       setFields([]);
       setCompareFields([]);
+
+      setTrendSnapshotIds([]);
+      setTrendFieldKey("");
+      setTrendRows([]);
+      setTrendLoading(false);
     });
 
     return () => {
@@ -81,6 +98,11 @@ export default function App() {
       setCompareDeviceSnapshotId("");
       setFields([]);
       setCompareFields([]);
+
+      setTrendSnapshotIds([]);
+      setTrendFieldKey("");
+      setTrendRows([]);
+      setTrendLoading(false);
       return;
     }
 
@@ -98,6 +120,11 @@ export default function App() {
         setCompareDeviceSnapshotId("");
         setFields([]);
         setCompareFields([]);
+
+        setTrendSnapshotIds([]);
+        setTrendFieldKey("");
+        setTrendRows([]);
+        setTrendLoading(false);
       });
 
     return () => {
@@ -164,6 +191,40 @@ export default function App() {
       };
     })
     .filter((r) => r.aValue !== r.bValue);
+
+  async function showTrend() {
+    if (!trendFieldKey) return;
+    if (trendSnapshotIds.length === 0) return;
+
+    const api = createApiClient({ baseUrl: "" });
+    setTrendLoading(true);
+    try {
+      const snapshotById = new Map(snapshots.map((s) => [s.deviceSnapshotId, s] as const));
+
+      const points = await Promise.all(
+        trendSnapshotIds.map(async (deviceSnapshotId) => {
+          const snap = snapshotById.get(deviceSnapshotId);
+          const timeStampUtc = snap?.timeStampUtc ?? "";
+
+          // Reuse already loaded fields for snapshot A/B when possible.
+          const fs =
+            deviceSnapshotId === selectedDeviceSnapshotId
+              ? fields
+              : deviceSnapshotId === compareDeviceSnapshotId
+                ? compareFields
+                : await api.getSnapshotFields(deviceSnapshotId);
+
+          const v = fs.find((f) => f.fieldKey === trendFieldKey)?.valueText ?? null;
+          return { timeStampUtc, valueText: v };
+        })
+      );
+
+      points.sort((a, b) => a.timeStampUtc.localeCompare(b.timeStampUtc));
+      setTrendRows(points);
+    } finally {
+      setTrendLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!configurationId) {
@@ -399,6 +460,85 @@ export default function App() {
               </tbody>
             </table>
           )}
+        </div>
+      ) : null}
+
+      {selectedDeviceSnapshotId && configurationId ? (
+        <div style={{ marginTop: 16 }}>
+          <h2>Trends</h2>
+
+          <div style={{ display: "grid", gap: 8, maxWidth: 720 }}>
+            <div>
+              <strong>Include snapshots</strong>
+            </div>
+
+            <div style={{ display: "grid", gap: 4 }}>
+              {snapshots.map((s) => {
+                const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
+                return (
+                  <label key={s.deviceSnapshotId} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Include ${s.snapshotId}`}
+                      checked={checked}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        setTrendSnapshotIds((prev) =>
+                          next
+                            ? [...prev, s.deviceSnapshotId]
+                            : prev.filter((id) => id !== s.deviceSnapshotId)
+                        );
+                      }}
+                    />
+                    {s.snapshotId} ({s.timeStampUtc})
+                  </label>
+                );
+              })}
+            </div>
+
+            <label>
+              Trend field
+              <select
+                aria-label="Trend field"
+                value={trendFieldKey}
+                onChange={(e) => setTrendFieldKey(e.target.value)}
+              >
+                <option value="">Select…</option>
+                {trackedFieldKeys.map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void showTrend()}
+              disabled={trendLoading || trendSnapshotIds.length === 0 || !trendFieldKey}
+            >
+              {trendLoading ? "Loading…" : "Show trend"}
+            </button>
+
+            {trendRows.length > 0 ? (
+              <table aria-label="Trend">
+                <thead>
+                  <tr>
+                    <th>TimeStampUtc</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trendRows.map((r) => (
+                    <tr key={r.timeStampUtc}>
+                      <td>{r.timeStampUtc}</td>
+                      <td>{r.valueText ?? ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>
