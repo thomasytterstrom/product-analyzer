@@ -21,7 +21,7 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Run → FAIL
 - [x] Implement `flattenSnapshotJson`
 - [x] Run → PASS
-- [ ] Commit
+- [x] Commit
 
 ## Task 4+: API + UI
 - [ ] DB access modules
