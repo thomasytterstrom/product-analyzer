@@ -8,6 +8,16 @@ export type ApiClient = {
   getSnapshotFields(
     deviceSnapshotId: string
   ): Promise<Array<{ fieldKey: string; valueText: string; valueType: string }>>;
+
+  getConfigurationFields(configurationId: string): Promise<
+    Array<{ configurationId: string; fieldKey: string; tracked: number; friendlyName?: string | null }>
+  >;
+  saveConfigurationFields(
+    configurationId: string,
+    fields: Array<{ fieldKey: string; tracked: number; friendlyName?: string | null }>
+  ): Promise<
+    Array<{ configurationId: string; fieldKey: string; tracked: number; friendlyName?: string | null }>
+  >;
 };
 
 export function createApiClient(opts: { baseUrl: string }): ApiClient {
@@ -62,6 +72,44 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         throw new Error(`GET /snapshots/:deviceSnapshotId/fields failed: ${res.status}`);
       }
       return (await res.json()) as Array<{ fieldKey: string; valueText: string; valueType: string }>;
+    },
+
+    async getConfigurationFields(configurationId: string) {
+      const res = await fetch(
+        `${baseUrl}/configurations/${encodeURIComponent(configurationId)}/fields`
+      );
+      if (!res.ok) {
+        throw new Error(`GET /configurations/:configurationId/fields failed: ${res.status}`);
+      }
+      return (await res.json()) as Array<{
+        configurationId: string;
+        fieldKey: string;
+        tracked: number;
+        friendlyName?: string | null;
+      }>;
+    },
+
+    async saveConfigurationFields(
+      configurationId: string,
+      fields: Array<{ fieldKey: string; tracked: number; friendlyName?: string | null }>
+    ) {
+      const res = await fetch(
+        `${baseUrl}/configurations/${encodeURIComponent(configurationId)}/fields`,
+        {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ fields })
+        }
+      );
+      if (!res.ok) {
+        throw new Error(`PUT /configurations/:configurationId/fields failed: ${res.status}`);
+      }
+      return (await res.json()) as Array<{
+        configurationId: string;
+        fieldKey: string;
+        tracked: number;
+        friendlyName?: string | null;
+      }>;
     }
   };
 }

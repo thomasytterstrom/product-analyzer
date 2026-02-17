@@ -15,6 +15,15 @@ export default function App() {
     Array<{ fieldKey: string; valueText: string; valueType: string }>
   >([]);
 
+  const configurationId =
+    fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
+
+  const [configurationFields, setConfigurationFields] = useState<
+    Array<{ configurationId: string; fieldKey: string; tracked: number; friendlyName?: string | null }>
+  >([]);
+  const [configurationFieldsLoading, setConfigurationFieldsLoading] = useState(false);
+  const [configurationFieldsSaving, setConfigurationFieldsSaving] = useState(false);
+
   useEffect(() => {
     const api = createApiClient({ baseUrl: "" });
     void api.listProductNumbers().then(setProductNumbers);
@@ -70,6 +79,40 @@ export default function App() {
     const api = createApiClient({ baseUrl: "" });
     void api.getSnapshotFields(selectedDeviceSnapshotId).then(setFields);
   }, [selectedDeviceSnapshotId]);
+
+  useEffect(() => {
+    if (!configurationId) {
+      setConfigurationFields([]);
+      setConfigurationFieldsLoading(false);
+      return;
+    }
+
+    const api = createApiClient({ baseUrl: "" });
+    setConfigurationFieldsLoading(true);
+    void api
+      .getConfigurationFields(configurationId)
+      .then(setConfigurationFields)
+      .finally(() => setConfigurationFieldsLoading(false));
+  }, [configurationId]);
+
+  async function saveTrackedFields() {
+    if (!configurationId) return;
+    const api = createApiClient({ baseUrl: "" });
+    setConfigurationFieldsSaving(true);
+    try {
+      const updated = await api.saveConfigurationFields(
+        configurationId,
+        configurationFields.map((f) => ({
+          fieldKey: f.fieldKey,
+          tracked: f.tracked,
+          friendlyName: f.friendlyName ?? ""
+        }))
+      );
+      setConfigurationFields(updated);
+    } finally {
+      setConfigurationFieldsSaving(false);
+    }
+  }
 
   return (
     <div style={{ padding: 16 }}>
@@ -144,6 +187,73 @@ export default function App() {
             ))}
           </tbody>
         </table>
+      ) : null}
+
+      {selectedDeviceSnapshotId && configurationId ? (
+        <div style={{ marginTop: 16 }}>
+          <h2>Tracked fields</h2>
+          <div style={{ display: "grid", gap: 8, maxWidth: 720 }}>
+            <div>
+              <strong>ConfigurationId:</strong> {configurationId}
+            </div>
+
+            {configurationFieldsLoading ? <div>Loading…</div> : null}
+
+            {!configurationFieldsLoading && configurationFields.length === 0 ? (
+              <div>No configuration fields found.</div>
+            ) : null}
+
+            {configurationFields.map((row) => (
+              <div
+                key={row.fieldKey}
+                style={{ display: "grid", gap: 4, padding: 8, border: "1px solid #ddd" }}
+              >
+                <div>{row.fieldKey}</div>
+
+                <label>
+                  <input
+                    type="checkbox"
+                    aria-label={`Tracked ${row.fieldKey}`}
+                    checked={row.tracked === 1}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setConfigurationFields((prev) =>
+                        prev.map((p) =>
+                          p.fieldKey === row.fieldKey ? { ...p, tracked: checked ? 1 : 0 } : p
+                        )
+                      );
+                    }}
+                  />
+                  Tracked
+                </label>
+
+                <label>
+                  Friendly name
+                  <input
+                    aria-label={`Friendly name ${row.fieldKey}`}
+                    value={row.friendlyName ?? ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setConfigurationFields((prev) =>
+                        prev.map((p) =>
+                          p.fieldKey === row.fieldKey ? { ...p, friendlyName: value } : p
+                        )
+                      );
+                    }}
+                  />
+                </label>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={() => void saveTrackedFields()}
+              disabled={configurationFieldsSaving || configurationFieldsLoading}
+            >
+              {configurationFieldsSaving ? "Saving…" : "Save tracked fields"}
+            </button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

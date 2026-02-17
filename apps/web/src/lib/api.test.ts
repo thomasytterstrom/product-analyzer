@@ -110,4 +110,84 @@ describe("createApiClient", () => {
     ]);
     expect(calls[0].url).toBe("http://example.test/snapshots/ds2/fields");
   });
+
+  it("gets configuration fields for a configuration id", async () => {
+    const api = createApiClient({ baseUrl: "http://example.test" });
+
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify([
+          {
+            configurationId: "cfg-1",
+            fieldKey: "root/FirmwareVersion",
+            tracked: 1,
+            friendlyName: "FW"
+          }
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      );
+    };
+
+    const result = await api.getConfigurationFields("cfg-1");
+
+    expect(result).toEqual([
+      {
+        configurationId: "cfg-1",
+        fieldKey: "root/FirmwareVersion",
+        tracked: 1,
+        friendlyName: "FW"
+      }
+    ]);
+    expect(calls[0].url).toBe("http://example.test/configurations/cfg-1/fields");
+  });
+
+  it("saves configuration fields for a configuration id", async () => {
+    const api = createApiClient({ baseUrl: "http://example.test" });
+
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify([
+          {
+            configurationId: "cfg-1",
+            fieldKey: "root/FirmwareVersion",
+            tracked: 0,
+            friendlyName: "Firmware"
+          }
+        ]),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        }
+      );
+    };
+
+    const result = await api.saveConfigurationFields("cfg-1", [
+      { fieldKey: "root/FirmwareVersion", tracked: 0, friendlyName: "Firmware" }
+    ]);
+
+    expect(result).toEqual([
+      {
+        configurationId: "cfg-1",
+        fieldKey: "root/FirmwareVersion",
+        tracked: 0,
+        friendlyName: "Firmware"
+      }
+    ]);
+
+    expect(calls[0].url).toBe("http://example.test/configurations/cfg-1/fields");
+    expect(calls[0].init?.method).toBe("PUT");
+    expect(calls[0].init?.headers).toEqual({ "content-type": "application/json" });
+    expect(calls[0].init?.body).toBe(
+      JSON.stringify({
+        fields: [{ fieldKey: "root/FirmwareVersion", tracked: 0, friendlyName: "Firmware" }]
+      })
+    );
+  });
 });

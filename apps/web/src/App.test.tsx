@@ -184,4 +184,137 @@ describe("App", () => {
     expect(await screen.findByText("599807801M")).toBeInTheDocument();
     expect(calls.some((c) => c.includes("/snapshots/ds2/fields"))).toBe(true);
   });
+
+  it("derives ConfigurationId and allows editing + saving tracked fields", async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+
+    globalThis.fetch = async (url: any, init?: any) => {
+      const u = String(url);
+      calls.push({ url: u, init });
+
+      if (u.endsWith("/product-numbers")) {
+        return new Response(JSON.stringify(["531285301"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/serial-numbers")) {
+        return new Response(JSON.stringify(["S1"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/products/") && u.includes("/snapshots")) {
+        return new Response(
+          JSON.stringify([
+            {
+              deviceSnapshotId: "ds2",
+              snapshotId: "snap-2",
+              timeStampUtc: "2026-02-18T07:50:23.000Z"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+      if (u.includes("/snapshots/ds2/fields")) {
+        return new Response(
+          JSON.stringify([
+            {
+              fieldKey: "root/ConfigurationId",
+              valueText: "cfg-1",
+              valueType: "string"
+            },
+            {
+              fieldKey: "root/FirmwareVersion",
+              valueText: "599807801M",
+              valueType: "string"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+      if (u.includes("/configurations/cfg-1/fields") && (!init || init.method === "GET")) {
+        return new Response(
+          JSON.stringify([
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/FirmwareVersion",
+              tracked: 1,
+              friendlyName: "FW"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      if (u.includes("/configurations/cfg-1/fields") && init?.method === "PUT") {
+        return new Response(
+          JSON.stringify([
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/FirmwareVersion",
+              tracked: 0,
+              friendlyName: "Firmware"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    render(<App />);
+
+    await screen.findByRole("option", { name: "531285301" });
+
+    fireEvent.change(screen.getByLabelText("Product number"), {
+      target: { value: "531285301" }
+    });
+
+    await screen.findByRole("option", { name: "S1" });
+    fireEvent.change(screen.getByLabelText("Serial number"), {
+      target: { value: "S1" }
+    });
+
+    fireEvent.click(await screen.findByText(/snap-2/));
+
+    expect(await screen.findByRole("heading", { name: /Tracked fields/i })).toBeInTheDocument();
+
+    const tracked = await screen.findByLabelText("Tracked root/FirmwareVersion");
+    expect((tracked as HTMLInputElement).checked).toBe(true);
+
+    const friendly = await screen.findByLabelText("Friendly name root/FirmwareVersion");
+    expect((friendly as HTMLInputElement).value).toBe("FW");
+
+    // Change values
+    fireEvent.click(tracked); // toggle -> unchecked
+    fireEvent.change(friendly, { target: { value: "Firmware" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /save tracked fields/i }));
+
+    // Assert we persisted via PUT
+    const putCall = calls.find((c) =>
+      c.url.includes("/configurations/cfg-1/fields") && c.init?.method === "PUT"
+    );
+    expect(putCall).toBeTruthy();
+    expect(putCall?.init?.headers).toEqual({ "content-type": "application/json" });
+    expect(putCall?.init?.body).toBe(
+      JSON.stringify({
+        fields: [{ fieldKey: "root/FirmwareVersion", tracked: 0, friendlyName: "Firmware" }]
+      })
+    );
+  });
 });
