@@ -70,6 +70,21 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Step 4: Run `npm -w apps/web run typecheck` → expect PASS
 - [x] Step 5: Commit (`feat(web): combine field discovery and friendly names`)
 
+## Task 8: Web UX adjustment — fields table tweaks
+
+- [ ] Step 1: Update web UI tests for fields table layout + interactions
+	- Remove Type column
+	- Value column should be wider
+	- Clicking “Track” should persist the change immediately (same as Save)
+- [ ] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [ ] Step 3: Update `apps/web/src/App.tsx` (and API client if needed) to:
+	- Remove Type column from table
+	- Make Value column wider (layout/utility classes)
+	- Save tracked state when clicking Track (no separate Save required for that action)
+- [ ] Step 4: Run `npm -w apps/web test` → expect PASS
+- [ ] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
+- [ ] Step 6: Commit (`feat(web): fields table track autosave + layout`)
+
 ## Task 8: Web UX adjustment — move Trends into a tab
 
 Follow `docs/plans/2026-02-17-trends-tab-web-ux.md`.
