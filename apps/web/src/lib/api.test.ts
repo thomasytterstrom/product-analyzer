@@ -8,7 +8,6 @@ describe("createApiClient", () => {
 
     // Minimal fetch stub (no mocking library):
     const calls: Array<{ url: string; init?: RequestInit }> = [];
-    // @ts-expect-error - override global fetch for test
     globalThis.fetch = async (url: any, init?: any) => {
       calls.push({ url: String(url), init });
       return new Response(JSON.stringify(["531285301", "999"]), {
@@ -27,7 +26,6 @@ describe("createApiClient", () => {
     const api = createApiClient({ baseUrl: "http://example.test" });
 
     const calls: Array<{ url: string; init?: RequestInit }> = [];
-    // @ts-expect-error - override global fetch for test
     globalThis.fetch = async (url: any, init?: any) => {
       calls.push({ url: String(url), init });
       return new Response(JSON.stringify(["S1", "S2"]), {
@@ -48,7 +46,6 @@ describe("createApiClient", () => {
     const api = createApiClient({ baseUrl: "http://example.test" });
 
     const calls: Array<{ url: string; init?: RequestInit }> = [];
-    // @ts-expect-error - override global fetch for test
     globalThis.fetch = async (url: any, init?: any) => {
       calls.push({ url: String(url), init });
       return new Response(

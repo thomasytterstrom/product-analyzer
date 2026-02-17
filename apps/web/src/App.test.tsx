@@ -6,7 +6,6 @@ import App from "./App";
 describe("App", () => {
   beforeEach(() => {
     // Default stub to avoid unhandled rejections in tests that don't care about data loading.
-    // @ts-expect-error - override global fetch for test
     globalThis.fetch = async () => {
       return new Response(JSON.stringify([]), {
         status: 200,
@@ -21,7 +20,6 @@ describe("App", () => {
   });
 
   it("loads and shows product numbers", async () => {
-    // @ts-expect-error - override global fetch for test
     globalThis.fetch = async () => {
       return new Response(JSON.stringify(["531285301", "999"]), {
         status: 200,
@@ -36,7 +34,6 @@ describe("App", () => {
   });
 
   it("loads serial numbers after selecting a product number", async () => {
-    // @ts-expect-error - override global fetch for test
     globalThis.fetch = async (url: any) => {
       const u = String(url);
       if (u.includes("/product-numbers/") && u.includes("/serial-numbers")) {
@@ -65,7 +62,6 @@ describe("App", () => {
   });
 
   it("loads snapshots after selecting product number and serial number", async () => {
-    // @ts-expect-error - override global fetch for test
     globalThis.fetch = async (url: any) => {
       const u = String(url);
       if (u.endsWith("/product-numbers")) {
