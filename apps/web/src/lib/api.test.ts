@@ -22,4 +22,25 @@ describe("createApiClient", () => {
     expect(result).toEqual(["531285301", "999"]);
     expect(calls[0].url).toBe("http://example.test/product-numbers");
   });
+
+  it("lists serial numbers for a product number", async () => {
+    const api = createApiClient({ baseUrl: "http://example.test" });
+
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    // @ts-expect-error - override global fetch for test
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init });
+      return new Response(JSON.stringify(["S1", "S2"]), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    };
+
+    const result = await api.listSerialNumbers("531285301");
+
+    expect(result).toEqual(["S1", "S2"]);
+    expect(calls[0].url).toBe(
+      "http://example.test/product-numbers/531285301/serial-numbers"
+    );
+  });
 });
