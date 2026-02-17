@@ -10,11 +10,11 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 - [x] Step 5: Commit
 
 ## Task 2: Shared diff
-- [ ] Write failing test
-- [ ] Run → FAIL
-- [ ] Implement `diffAttributes`
-- [ ] Run → PASS
-- [ ] Commit
+- [x] Write failing test
+- [x] Run → FAIL
+- [x] Implement `diffAttributes`
+- [x] Run → PASS
+- [x] Commit
 
 ## Task 3: Flatten JSON
 - [ ] Write failing test
