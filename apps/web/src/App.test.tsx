@@ -257,6 +257,9 @@ describe("App", () => {
   });
 
   it("renders fields table without Type column and with wider Value column", async () => {
+    const longFieldKey =
+      "root/SomeExtremelyLongFieldKeyThatHasNoSpacesAndWouldOtherwiseOverflowIntoTheNextColumn/Segment1/Segment2/Segment3";
+
     globalThis.fetch = async (url: any) => {
       const u = String(url);
 
@@ -291,7 +294,7 @@ describe("App", () => {
         return new Response(
           JSON.stringify([
             {
-              fieldKey: "root/FirmwareVersion",
+              fieldKey: longFieldKey,
               valueText: "599807801M",
               valueType: "string"
             }
@@ -326,18 +329,29 @@ describe("App", () => {
     // We use a fixed table layout so column widths are honored (otherwise the long field keys
     // can steal all horizontal space and Friendly name won't visually grow).
     expect(table).toHaveClass("table-fixed");
-    expect(table).toHaveClass("min-w-[60rem]");
+    expect(table).toHaveClass("min-w-[72rem]");
 
-    expect(tableWithin.getByRole("columnheader", { name: /field key/i })).toBeInTheDocument();
+    const keyHeader = tableWithin.getByRole("columnheader", { name: /field key/i });
+    expect(keyHeader).toBeInTheDocument();
+    expect(keyHeader).toHaveClass("w-[22rem]");
 
     const valueHeader = tableWithin.getByRole("columnheader", { name: /value \(a\)/i });
-    expect(valueHeader).toHaveClass("w-[45%]");
+    expect(valueHeader).toHaveClass("w-[26rem]");
+
+    const keyCell = tableWithin.getByText(longFieldKey).closest("td");
+    expect(keyCell).not.toBeNull();
+    // Critical: long unbroken keys must not visually overlap the Value (A) column.
+    // We enforce that by requiring the key cell to allow breaking/wrapping.
+    expect(keyCell).toHaveClass("break-all");
 
     expect(tableWithin.queryByRole("columnheader", { name: /type/i })).not.toBeInTheDocument();
-    expect(tableWithin.getByRole("columnheader", { name: /tracked/i })).toBeInTheDocument();
+    const trackedHeader = tableWithin.getByRole("columnheader", { name: /tracked/i });
+    expect(trackedHeader).toBeInTheDocument();
+    expect(trackedHeader).toHaveClass("w-[8rem]");
     const friendlyHeader = tableWithin.getByRole("columnheader", { name: /friendly name/i });
     expect(friendlyHeader).toBeInTheDocument();
-    expect(friendlyHeader).toHaveClass("w-[28rem]");
+    // Friendly name should receive the remaining horizontal space.
+    expect(friendlyHeader).not.toHaveClass("w-[22rem]");
   });
 
   it("derives ConfigurationId and persists tracked toggle immediately when clicking Track", async () => {
@@ -1433,5 +1447,271 @@ describe("App", () => {
     const w = within(seriesList);
     expect(w.getByText("FW")).toBeInTheDocument();
     expect(w.getByText("Temp")).toBeInTheDocument();
+  });
+
+  it("assigns distinct colors to each trend series", async () => {
+    globalThis.fetch = async (url: any, init?: any) => {
+      const u = String(url);
+
+      if (u.endsWith("/product-numbers")) {
+        return new Response(JSON.stringify(["531285301"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/serial-numbers")) {
+        return new Response(JSON.stringify(["S1"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/products/") && u.includes("/snapshots")) {
+        return new Response(
+          JSON.stringify([
+            {
+              deviceSnapshotId: "ds2",
+              snapshotId: "snap-2",
+              timeStampUtc: "2026-02-18T07:50:23.000Z"
+            },
+            {
+              deviceSnapshotId: "ds1",
+              snapshotId: "snap-1",
+              timeStampUtc: "2026-02-17T07:50:23.000Z"
+            }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      // Snapshot A (selected) => provides ConfigurationId
+      if (u.includes("/snapshots/ds1/fields")) {
+        return new Response(
+          JSON.stringify([
+            { fieldKey: "root/ConfigurationId", valueText: "cfg-1", valueType: "string" },
+            { fieldKey: "root/FirmwareVersion", valueText: "1", valueType: "number" },
+            { fieldKey: "root/Temperature", valueText: "10", valueType: "number" }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+      if (u.includes("/snapshots/ds2/fields")) {
+        return new Response(
+          JSON.stringify([
+            { fieldKey: "root/ConfigurationId", valueText: "cfg-1", valueType: "string" },
+            { fieldKey: "root/FirmwareVersion", valueText: "2", valueType: "number" },
+            { fieldKey: "root/Temperature", valueText: "12", valueType: "number" }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      if (u.includes("/configurations/cfg-1/fields")) {
+        return new Response(
+          JSON.stringify([
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/FirmwareVersion",
+              tracked: true,
+              friendlyName: "FW"
+            },
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/Temperature",
+              tracked: true,
+              friendlyName: "Temp"
+            }
+          ]),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" }
+          }
+        );
+      }
+
+      if (u.includes("/products/531285301/S1/timeseries") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify([
+            {
+              fieldKey: "root/FirmwareVersion",
+              points: [
+                {
+                  deviceSnapshotId: "ds1",
+                  timeStampUtc: "2026-02-17T07:50:23.000Z",
+                  valueText: "1",
+                  valueType: "number"
+                },
+                {
+                  deviceSnapshotId: "ds2",
+                  timeStampUtc: "2026-02-18T07:50:23.000Z",
+                  valueText: "2",
+                  valueType: "number"
+                }
+              ]
+            },
+            {
+              fieldKey: "root/Temperature",
+              points: [
+                {
+                  deviceSnapshotId: "ds1",
+                  timeStampUtc: "2026-02-17T07:50:23.000Z",
+                  valueText: "10",
+                  valueType: "number"
+                },
+                {
+                  deviceSnapshotId: "ds2",
+                  timeStampUtc: "2026-02-18T07:50:23.000Z",
+                  valueText: "12",
+                  valueType: "number"
+                }
+              ]
+            }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    render(<App />);
+
+    await screen.findByRole("option", { name: "531285301" });
+    fireEvent.change(screen.getByLabelText("Product number"), {
+      target: { value: "531285301" }
+    });
+
+    await screen.findByRole("option", { name: "S1" });
+    fireEvent.change(screen.getByLabelText("Serial number"), {
+      target: { value: "S1" }
+    });
+
+    // Select snapshot A
+    fireEvent.click(await screen.findByText(/snap-1/));
+
+    // Switch to Workspace: Analysis, then Analysis tab: Trends
+    {
+      const workspaceTabs = screen.getByRole("tablist", { name: /workspace/i });
+      const analysisWorkspaceTab = within(workspaceTabs).getByRole("tab", { name: /analysis/i });
+      fireEvent.click(analysisWorkspaceTab);
+
+      const analysisTabs = screen.getByRole("tablist", { name: /analysis/i });
+      const trendsTab = within(analysisTabs).getByRole("tab", { name: /trends/i });
+      fireEvent.click(trendsTab);
+    }
+
+    fireEvent.click(await screen.findByLabelText("Include snap-1"));
+    fireEvent.click(await screen.findByLabelText("Include snap-2"));
+
+    fireEvent.click(await screen.findByLabelText("Select trend root/FirmwareVersion"));
+    fireEvent.click(await screen.findByLabelText("Select trend root/Temperature"));
+
+    fireEvent.click(screen.getByRole("button", { name: /show trend/i }));
+
+    const seriesList = await screen.findByRole("list", { name: /trend series/i });
+    const fw = within(seriesList).getByText("FW").closest("li");
+    const temp = within(seriesList).getByText("Temp").closest("li");
+
+    expect(fw).toBeTruthy();
+    expect(temp).toBeTruthy();
+
+    // Deterministic token assignment (index order, cycled).
+    expect(fw).toHaveAttribute("data-series-color", "chart-1");
+    expect(temp).toHaveAttribute("data-series-color", "chart-2");
+
+    const chart = await screen.findByLabelText("Trend chart");
+    // Recharts renders SVG paths; assert our stroke values are present.
+    expect(chart.querySelectorAll('path[stroke="hsl(var(--chart-1))"]').length).toBeGreaterThan(0);
+    expect(chart.querySelectorAll('path[stroke="hsl(var(--chart-2))"]').length).toBeGreaterThan(0);
+  });
+
+  it("lays out Trends controls as two columns under a hero chart panel", async () => {
+    globalThis.fetch = async (url: any, init?: any) => {
+      const u = String(url);
+
+      if (u.endsWith("/product-numbers")) {
+        return new Response(JSON.stringify(["531285301"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/serial-numbers")) {
+        return new Response(JSON.stringify(["S1"]), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        });
+      }
+      if (u.includes("/products/") && u.includes("/snapshots")) {
+        return new Response(
+          JSON.stringify([
+            { deviceSnapshotId: "ds2", snapshotId: "snap-2", timeStampUtc: "2026-02-18T07:50:23.000Z" },
+            { deviceSnapshotId: "ds1", snapshotId: "snap-1", timeStampUtc: "2026-02-17T07:50:23.000Z" }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      // Snapshot A (selected) => provides ConfigurationId
+      if (u.includes("/snapshots/ds1/fields")) {
+        return new Response(
+          JSON.stringify([
+            { fieldKey: "root/ConfigurationId", valueText: "cfg-1", valueType: "string" },
+            { fieldKey: "root/FirmwareVersion", valueText: "1", valueType: "number" }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      if (u.includes("/configurations/cfg-1/fields")) {
+        return new Response(
+          JSON.stringify([
+            {
+              configurationId: "cfg-1",
+              fieldKey: "root/FirmwareVersion",
+              tracked: true,
+              friendlyName: "FW"
+            }
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      return new Response("[]", { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    render(<App />);
+
+    await screen.findByRole("option", { name: "531285301" });
+    fireEvent.change(screen.getByLabelText("Product number"), { target: { value: "531285301" } });
+
+    await screen.findByRole("option", { name: "S1" });
+    fireEvent.change(screen.getByLabelText("Serial number"), { target: { value: "S1" } });
+
+    // Select snapshot A => enables trends
+    fireEvent.click(await screen.findByText(/snap-1/));
+
+    // Switch to Workspace: Analysis, then Analysis tab: Trends
+    {
+      const workspaceTabs = screen.getByRole("tablist", { name: /workspace/i });
+      fireEvent.click(within(workspaceTabs).getByRole("tab", { name: /analysis/i }));
+
+      const analysisTabs = screen.getByRole("tablist", { name: /analysis/i });
+      fireEvent.click(within(analysisTabs).getByRole("tab", { name: /trends/i }));
+    }
+
+    const hero = await screen.findByTestId("trend-hero");
+    const controls = await screen.findByTestId("trend-controls-grid");
+
+    // “Hero chart” panel exists and appears above controls in DOM order.
+    expect(hero).toBeInTheDocument();
+    expect(controls).toBeInTheDocument();
+    expect(hero.compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Controls are a responsive two-column grid.
+    expect(controls).toHaveClass("grid");
+    expect(controls).toHaveClass("md:grid-cols-2");
+
+    // Section headings still present.
+    expect(within(controls).getByText(/include snapshots/i)).toBeInTheDocument();
+    expect(within(controls).getByText(/trend fields/i)).toBeInTheDocument();
   });
 });

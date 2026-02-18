@@ -39,6 +39,38 @@ type TimeSeriesSeries = {
   points: TimeSeriesPoint[];
 };
 
+const CHART_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))"
+] as const;
+
+function getChartColor(index: number) {
+  return CHART_COLORS[index % CHART_COLORS.length];
+}
+
+function getChartColorToken(index: number) {
+  const n = (index % CHART_COLORS.length) + 1;
+  return `chart-${n}` as const;
+}
+
+function ChartColorDot({ index }: { index: number }) {
+  switch (index % CHART_COLORS.length) {
+    case 0:
+      return <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-chart-1" />;
+    case 1:
+      return <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-chart-2" />;
+    case 2:
+      return <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-chart-3" />;
+    case 3:
+      return <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-chart-4" />;
+    default:
+      return <span aria-hidden className="h-2.5 w-2.5 rounded-full bg-chart-5" />;
+  }
+}
+
 export default function App() {
   const [productNumbers, setProductNumbers] = useState<string[]>([]);
   const [selectedProductNumber, setSelectedProductNumber] = useState<string>("");
@@ -64,6 +96,8 @@ export default function App() {
   const [trendFieldKeys, setTrendFieldKeys] = useState<string[]>([]);
   const [trendSeries, setTrendSeries] = useState<TimeSeriesSeries[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
+
+  const trendSeriesIndexByKey = new Map(trendSeries.map((s, idx) => [s.fieldKey, idx] as const));
 
   const numericTrendSeries = trendSeries
     .map((s) => {
@@ -742,13 +776,13 @@ export default function App() {
                         />
                       </label>
 
-                      <Table aria-label="Fields (Snapshot A)" className="table-fixed min-w-[60rem]">
+                      <Table aria-label="Fields (Snapshot A)" className="table-fixed min-w-[72rem]">
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[34%]">Field key</TableHead>
-                            <TableHead className="w-[45%]">Value (A)</TableHead>
-                            <TableHead className="w-[9rem]">Tracked</TableHead>
-                            <TableHead className="w-[28rem]">Friendly name</TableHead>
+                            <TableHead className="w-[22rem]">Field key</TableHead>
+                            <TableHead className="w-[26rem]">Value (A)</TableHead>
+                            <TableHead className="w-[8rem]">Tracked</TableHead>
+                            <TableHead>Friendly name</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -768,7 +802,7 @@ export default function App() {
 
                               return (
                                 <TableRow key={fieldKey}>
-                                  <TableCell className="font-mono text-xs">{fieldKey}</TableCell>
+                                  <TableCell className="break-all font-mono text-xs">{fieldKey}</TableCell>
                                   <TableCell className="break-all">{snap?.valueText ?? ""}</TableCell>
                                   <TableCell>
                                     <label className="flex items-center gap-2">
@@ -961,80 +995,131 @@ export default function App() {
                         </p>
                       ) : (
                         <div className="grid gap-4">
-                          <div className="grid gap-2">
-                            <div className="text-sm font-medium">Include snapshots</div>
+                          <div
+                            data-testid="trend-hero"
+                            className="rounded-lg border bg-muted/20 p-4 md:p-6"
+                          >
+                            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium">Chart</div>
+                                <div className="text-xs text-muted-foreground">
+                                  Numeric tracked fields plotted over time.
+                                </div>
+                              </div>
+                            </div>
 
-                            {snapshots.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No snapshots available.</p>
-                            ) : (
-                              <div className="grid gap-2">
-                                {snapshots.map((s) => {
-                                  const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
-                                  return (
-                                    <label
-                                      key={s.deviceSnapshotId}
-                                      className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
-                                    >
-                                      <Checkbox
-                                        aria-label={`Include ${s.snapshotId}`}
-                                        checked={checked}
-                                        onChange={(e) => {
-                                          const next = (e.target as HTMLInputElement).checked;
-                                          setTrendSnapshotIds((prev) =>
-                                            next
-                                              ? [...prev, s.deviceSnapshotId]
-                                              : prev.filter((id) => id !== s.deviceSnapshotId)
-                                          );
-                                        }}
+                            {numericTrendSeries.length > 0 && numericTrendChartRows.length >= 2 ? (
+                              <div aria-label="Trend chart" className="h-72 w-full md:h-96">
+                                <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={200}>
+                                  <LineChart
+                                    data={numericTrendChartRows}
+                                    margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
+                                  >
+                                    <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
+                                    <XAxis dataKey="timeStampUtc" hide />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Legend />
+                                    {numericTrendSeries.map((s) => (
+                                      <Line
+                                        key={s.fieldKey}
+                                        type="monotone"
+                                        dataKey={s.fieldKey}
+                                        name={trackedFriendlyNameByKey.get(s.fieldKey) ?? s.fieldKey}
+                                        dot={false}
+                                        stroke={getChartColor(trendSeriesIndexByKey.get(s.fieldKey) ?? 0)}
+                                        strokeWidth={2}
                                       />
-                                      <span className="min-w-0 truncate">
-                                        {s.snapshotId}{" "}
-                                        <span className="text-xs text-muted-foreground">({s.timeStampUtc})</span>
-                                      </span>
-                                    </label>
-                                  );
-                                })}
+                                    ))}
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              </div>
+                            ) : (
+                              <div className="flex h-40 items-center justify-center rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
+                                Select snapshots + fields, then click “Show trend” to render a chart.
                               </div>
                             )}
                           </div>
 
-                          <div className="grid gap-2">
-                            <div className="text-sm font-medium">Trend fields</div>
+                          <div
+                            data-testid="trend-controls-grid"
+                            className="grid gap-4 md:grid-cols-2"
+                          >
+                            <div className="grid gap-2">
+                              <div className="text-sm font-medium">Include snapshots</div>
 
-                            {trackedFieldKeys.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">
-                                To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
-                              </p>
-                            ) : (
-                              <div className="grid gap-2">
-                                {trackedFieldKeys.map((k) => {
-                                  const checked = trendFieldKeys.includes(k);
-                                  const label = trackedFriendlyNameByKey.get(k) ?? k;
+                              {snapshots.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No snapshots available.</p>
+                              ) : (
+                                <div className="grid gap-2">
+                                  {snapshots.map((s) => {
+                                    const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
+                                    return (
+                                      <label
+                                        key={s.deviceSnapshotId}
+                                        className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+                                      >
+                                        <Checkbox
+                                          aria-label={`Include ${s.snapshotId}`}
+                                          checked={checked}
+                                          onChange={(e) => {
+                                            const next = (e.target as HTMLInputElement).checked;
+                                            setTrendSnapshotIds((prev) =>
+                                              next
+                                                ? [...prev, s.deviceSnapshotId]
+                                                : prev.filter((id) => id !== s.deviceSnapshotId)
+                                            );
+                                          }}
+                                        />
+                                        <span className="min-w-0 truncate">
+                                          {s.snapshotId}{" "}
+                                          <span className="text-xs text-muted-foreground">({s.timeStampUtc})</span>
+                                        </span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
 
-                                  return (
-                                    <label
-                                      key={k}
-                                      className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
-                                    >
-                                      <Checkbox
-                                        aria-label={`Select trend ${k}`}
-                                        checked={checked}
-                                        onChange={(e) => {
-                                          const next = (e.target as HTMLInputElement).checked;
-                                          setTrendFieldKeys((prev) =>
-                                            next ? [...prev, k] : prev.filter((x) => x !== k)
-                                          );
-                                        }}
-                                      />
-                                      <span className="min-w-0 truncate">{label}</span>
-                                    </label>
-                                  );
-                                })}
-                              </div>
-                            )}
+                            <div className="grid gap-2">
+                              <div className="text-sm font-medium">Trend fields</div>
+
+                              {trackedFieldKeys.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                  To pick trend fields, first mark one or more fields as <em>Tracked</em> in the Fields section.
+                                </p>
+                              ) : (
+                                <div className="grid gap-2">
+                                  {trackedFieldKeys.map((k) => {
+                                    const checked = trendFieldKeys.includes(k);
+                                    const label = trackedFriendlyNameByKey.get(k) ?? k;
+
+                                    return (
+                                      <label
+                                        key={k}
+                                        className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm"
+                                      >
+                                        <Checkbox
+                                          aria-label={`Select trend ${k}`}
+                                          checked={checked}
+                                          onChange={(e) => {
+                                            const next = (e.target as HTMLInputElement).checked;
+                                            setTrendFieldKeys((prev) =>
+                                              next ? [...prev, k] : prev.filter((x) => x !== k)
+                                            );
+                                          }}
+                                        />
+                                        <span className="min-w-0 truncate">{label}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="flex flex-wrap gap-2">
+                          <div className="flex flex-wrap gap-2 md:justify-end">
                             <Button
                               type="button"
                               onClick={() => void showTrend()}
@@ -1046,41 +1131,17 @@ export default function App() {
 
                           {trendSeries.length > 0 ? (
                             <div className="space-y-3">
-                              {numericTrendSeries.length > 0 && numericTrendChartRows.length >= 2 ? (
-                                <div className="rounded-md border bg-background p-3">
-                                  <div aria-label="Trend chart" className="h-56 w-full">
-                                    <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={200}>
-                                      <LineChart
-                                        data={numericTrendChartRows}
-                                        margin={{ top: 8, right: 16, bottom: 8, left: 0 }}
-                                      >
-                                        <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                                        <XAxis dataKey="timeStampUtc" hide />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        {numericTrendSeries.map((s) => (
-                                          <Line
-                                            key={s.fieldKey}
-                                            type="monotone"
-                                            dataKey={s.fieldKey}
-                                            name={trackedFriendlyNameByKey.get(s.fieldKey) ?? s.fieldKey}
-                                            dot={false}
-                                            strokeWidth={2}
-                                          />
-                                        ))}
-                                      </LineChart>
-                                    </ResponsiveContainer>
-                                  </div>
-                                </div>
-                              ) : null}
-
                               <ul aria-label="Trend series" role="list" className="flex flex-wrap gap-2 text-sm">
-                                {trendSeries.map((s) => {
+                                {trendSeries.map((s, idx) => {
                                   const label = trackedFriendlyNameByKey.get(s.fieldKey) ?? s.fieldKey;
                                   return (
-                                    <li key={s.fieldKey} className="rounded-md border bg-muted/30 px-2 py-1">
-                                      {label}
+                                    <li
+                                      key={s.fieldKey}
+                                      data-series-color={getChartColorToken(idx)}
+                                      className="flex items-center gap-2 rounded-md border bg-muted/30 px-2 py-1"
+                                    >
+                                      <ChartColorDot index={idx} />
+                                      <span>{label}</span>
                                     </li>
                                   );
                                 })}

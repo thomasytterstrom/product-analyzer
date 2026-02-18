@@ -105,12 +105,14 @@ Follow `docs/plans/2026-02-17-product-analyzer.md`.
 
 Follow `docs/plans/2026-02-17-trends-tab-web-ux.md`.
 
-- [ ] Step 1: Update web UI tests to expect an Analysis tablist (Diff default, Trends hidden by default)
-- [ ] Step 2: Run `npm -w apps/web test` → expect FAIL
-- [ ] Step 3: Update `apps/web/src/App.tsx` to render Diff/Trends under tabs (keep behavior)
-- [ ] Step 4: Run `npm -w apps/web test` → expect PASS
-- [ ] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 6: Commit (`feat(web): move trends into analysis tab`)
+Implemented via the Workspace (Configure/Analysis) tabs + nested Analysis (Diff/Trends) tabs in `apps/web/src/App.tsx`, with coverage in `apps/web/src/App.test.tsx`.
+
+- [x] Step 1: Update web UI tests to expect an Analysis tablist (Diff default, Trends hidden by default)
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Update `apps/web/src/App.tsx` to render Diff/Trends under tabs (keep behavior)
+- [x] Step 4: Run `npm -w apps/web test` → expect PASS
+- [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
+- [x] Step 6: Commit (`feat(web): move trends into analysis tab`)
 
 ## Task 10: Web UX adjustment — separate Configure fields from Analysis
 
@@ -143,3 +145,33 @@ Follow `docs/plans/2026-02-17-trends-chart-design.md`.
 - [x] Step 6: Run `npm -w apps/web test` → expect PASS
 - [x] Step 7: Run `npm -w apps/web run typecheck` → expect PASS
 - [x] Step 8: Commit (`feat(web): multi-field trends chart`)
+
+## Task 12: Web UI bugfix — Fields table key/value overlap
+
+- [x] Step 1: Add failing web UI test covering long Field key text not visually overlapping Value (A)
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Fix Fields (Snapshot A) Field key cell styling so long keys wrap/truncate instead of overlapping
+- [x] Step 4: Run `npm -w apps/web test` → expect PASS
+- [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
+
+## Task 13: Web Trends — deterministic series colors
+
+Follow `docs/plans/2026-02-18-trends-chart-series-colors.md`.
+
+- [x] Step 1: Add failing web UI test asserting distinct series colors + stable series markers
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Add shadcn-style chart color tokens (`--chart-1`..`--chart-5`) + Tailwind `chart` palette
+- [x] Step 4: Wire chart series strokes + series list markers to the palette
+- [x] Step 5: Run `npm -w apps/web test` → expect PASS
+- [x] Step 6: Run `npm -w apps/web run typecheck` → expect PASS
+
+## Task 14: Web Trends — hero chart + two-column controls
+
+Follow `docs/plans/2026-02-18-trends-hero-layout.md`.
+
+- [x] Step 1: Add failing Trends layout test (`apps/web/src/App.test.tsx`)
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Update Trends layout in `apps/web/src/App.tsx` (hero chart + 2-column controls)
+- [x] Step 4: Run `npm -w apps/web test` → expect PASS
+- [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
+- [ ] Step 6: Commit (`feat(web): make trends chart hero and controls two-column`)
