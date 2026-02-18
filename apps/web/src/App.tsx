@@ -779,8 +779,8 @@ export default function App() {
                       <Table aria-label="Fields (Snapshot A)" className="table-fixed min-w-[72rem]">
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-[22rem]">Field key</TableHead>
-                            <TableHead className="w-[26rem]">Value (A)</TableHead>
+                            <TableHead className="w-[32rem]">Field key</TableHead>
+                            <TableHead className="w-[22rem]">Value (A)</TableHead>
                             <TableHead className="w-[8rem]">Tracked</TableHead>
                             <TableHead>Friendly name</TableHead>
                           </TableRow>

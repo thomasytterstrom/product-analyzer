@@ -333,10 +333,10 @@ describe("App", () => {
 
     const keyHeader = tableWithin.getByRole("columnheader", { name: /field key/i });
     expect(keyHeader).toBeInTheDocument();
-    expect(keyHeader).toHaveClass("w-[22rem]");
+    expect(keyHeader).toHaveClass("w-[32rem]");
 
     const valueHeader = tableWithin.getByRole("columnheader", { name: /value \(a\)/i });
-    expect(valueHeader).toHaveClass("w-[26rem]");
+    expect(valueHeader).toHaveClass("w-[22rem]");
 
     const keyCell = tableWithin.getByText(longFieldKey).closest("td");
     expect(keyCell).not.toBeNull();
