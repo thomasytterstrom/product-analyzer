@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { createApiClient } from "./lib/api";
 import { Badge } from "./components/ui/badge";
@@ -97,6 +97,8 @@ export default function App() {
   const [trendSeries, setTrendSeries] = useState<TimeSeriesSeries[]>([]);
   const [trendLoading, setTrendLoading] = useState(false);
 
+  const selectAllSnapshotsRef = useRef<HTMLInputElement>(null);
+
   const trendSeriesIndexByKey = new Map(trendSeries.map((s, idx) => [s.fieldKey, idx] as const));
 
   const numericTrendSeries = trendSeries
@@ -138,6 +140,20 @@ export default function App() {
 
   const configurationId =
     fields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
+
+  const trendSnapshotSelectedCount = (() => {
+    if (snapshots.length === 0) return 0;
+    const selected = new Set(trendSnapshotIds);
+    return snapshots.reduce((acc, s) => acc + (selected.has(s.deviceSnapshotId) ? 1 : 0), 0);
+  })();
+
+  const trendAllSnapshotsSelected = snapshots.length > 0 && trendSnapshotSelectedCount === snapshots.length;
+  const trendSomeSnapshotsSelected = trendSnapshotSelectedCount > 0 && !trendAllSnapshotsSelected;
+
+  useEffect(() => {
+    if (!selectAllSnapshotsRef.current) return;
+    selectAllSnapshotsRef.current.indeterminate = trendSomeSnapshotsSelected;
+  }, [trendSomeSnapshotsSelected]);
 
   const compareConfigurationId =
     compareFields.find((f) => f.fieldKey === "root/ConfigurationId")?.valueText?.trim() ?? "";
@@ -1052,6 +1068,25 @@ export default function App() {
                                 <p className="text-sm text-muted-foreground">No snapshots available.</p>
                               ) : (
                                 <div className="grid gap-2">
+                                  <label className="flex items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm">
+                                    <Checkbox
+                                      ref={selectAllSnapshotsRef}
+                                      aria-label="Select all snapshots"
+                                      checked={trendAllSnapshotsSelected}
+                                      onChange={() => {
+                                        setTrendSnapshotIds(
+                                          trendAllSnapshotsSelected
+                                            ? []
+                                            : snapshots.map((s) => s.deviceSnapshotId)
+                                        );
+                                      }}
+                                    />
+                                    <span className="min-w-0 truncate font-medium">Select all</span>
+                                    <span className="ml-auto text-xs text-muted-foreground">
+                                      {trendSnapshotSelectedCount}/{snapshots.length}
+                                    </span>
+                                  </label>
+
                                   {snapshots.map((s) => {
                                     const checked = trendSnapshotIds.includes(s.deviceSnapshotId);
                                     return (
@@ -1148,24 +1183,45 @@ export default function App() {
                               </ul>
 
                               <div className="space-y-4">
-                                {trendSeries.map((s) => (
-                                  <Table key={s.fieldKey} aria-label={`Trend ${s.fieldKey}`}>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
-                                        <TableHead>Value</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {s.points.map((p) => (
-                                        <TableRow key={`${s.fieldKey}:${p.timeStampUtc}`}>
-                                          <TableCell className="font-mono text-xs">{p.timeStampUtc}</TableCell>
-                                          <TableCell className="break-all font-mono text-xs">{p.valueText ?? ""}</TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                ))}
+                                <div
+                                  data-testid="trend-values-grid"
+                                  className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+                                >
+                                {trendSeries.map((s) => {
+                                  const friendlyNameRaw = trackedFriendlyNameByKey.get(s.fieldKey);
+                                  const friendlyNameTrimmed = friendlyNameRaw?.trim();
+                                  const friendlyName = friendlyNameTrimmed ? friendlyNameTrimmed : s.fieldKey;
+
+                                  return (
+                                    <section
+                                      key={s.fieldKey}
+                                      aria-label={`Trend values ${friendlyName}`}
+                                        className="h-full space-y-2 rounded-md border bg-background p-3"
+                                    >
+                                      <div className="text-base font-semibold">
+                                        {friendlyName}
+                                      </div>
+
+                                      <Table aria-label={`Trend ${friendlyName}`}>
+                                        <TableHeader>
+                                          <TableRow>
+                                            <TableHead className="w-[16rem]">TimeStampUtc</TableHead>
+                                            <TableHead>Value</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {s.points.map((p) => (
+                                            <TableRow key={`${s.fieldKey}:${p.timeStampUtc}`}>
+                                              <TableCell className="font-mono text-xs">{p.timeStampUtc}</TableCell>
+                                              <TableCell className="break-all font-mono text-xs">{p.valueText ?? ""}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </section>
+                                  );
+                                })}
+                                </div>
                               </div>
                             </div>
                           ) : null}

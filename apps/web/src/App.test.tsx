@@ -1116,7 +1116,11 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: /Trends/i })).toBeInTheDocument();
 
-    const trendTable = await screen.findByRole("table", { name: "Trend root/FirmwareVersion" });
+    // The per-series values table should have a visible series label above it.
+    const valuesRegion = await screen.findByRole("region", { name: /trend values\s+fw/i });
+    expect(within(valuesRegion).getByText("FW")).toBeInTheDocument();
+
+    const trendTable = within(valuesRegion).getByRole("table", { name: /trend\s+fw/i });
     const w = within(trendTable);
     // Ordered by timeStampUtc asc
     expect(w.getByRole("cell", { name: "2026-02-17T07:50:23.000Z" })).toBeInTheDocument();
@@ -1258,9 +1262,10 @@ describe("App", () => {
       fireEvent.click(trendsTab);
     }
 
-    // Select snapshots to include in the trend
-    fireEvent.click(await screen.findByLabelText("Include snap-1"));
-    fireEvent.click(await screen.findByLabelText("Include snap-2"));
+    // Select snapshots to include in the trend (Select all)
+    fireEvent.click(await screen.findByLabelText(/select all snapshots/i));
+    expect(await screen.findByLabelText("Include snap-1")).toBeChecked();
+    expect(await screen.findByLabelText("Include snap-2")).toBeChecked();
 
     // Choose tracked field(s)
     fireEvent.click(await screen.findByLabelText("Select trend root/FirmwareVersion"));
@@ -1273,8 +1278,15 @@ describe("App", () => {
     const seriesList = await screen.findByRole("list", { name: /trend series/i });
     expect(within(seriesList).getByText("FW")).toBeInTheDocument();
 
-    // And the per-field table still renders points.
-    const trendTable = await screen.findByRole("table", { name: "Trend root/FirmwareVersion" });
+    const valuesGrid = await screen.findByTestId("trend-values-grid");
+    expect(valuesGrid).toHaveClass("grid");
+    expect(valuesGrid).toHaveClass("md:grid-cols-2");
+
+    // And the per-field table still renders points, with a visible label above it.
+    const valuesRegion = await screen.findByRole("region", { name: /trend values\s+fw/i });
+    expect(within(valuesRegion).getByText("FW")).toBeInTheDocument();
+
+    const trendTable = within(valuesRegion).getByRole("table", { name: /trend\s+fw/i });
     expect(within(trendTable).getByRole("cell", { name: "2026-02-17T07:50:23.000Z" })).toBeInTheDocument();
     expect(within(trendTable).getByRole("cell", { name: "1" })).toBeInTheDocument();
   });

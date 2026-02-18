@@ -175,3 +175,33 @@ Follow `docs/plans/2026-02-18-trends-hero-layout.md`.
 - [x] Step 4: Run `npm -w apps/web test` → expect PASS
 - [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
 - [x] Step 6: Commit (`feat(web): make trends chart hero and controls two-column`)
+
+## Task 15: Web Trends — values table shows friendly name
+
+- [x] Step 1: Update/add a failing web UI test asserting the trend values table clearly indicates the friendly name
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Update `apps/web/src/App.tsx` Trends values table labeling (aria + visible) to include friendly name (and field key when different)
+- [x] Step 4: Run `npm -w apps/web test` → expect PASS
+- [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
+
+## Task 16: Web Trends — series label above values table (friendly-only)
+
+- [x] Step 1: Update/add a failing web UI test asserting the per-series values table has a visible, easier-to-see label above it using the friendly name
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Update `apps/web/src/App.tsx` to render a visible series label above each values table (friendly name only; fallback to field key if missing/blank)
+- [x] Step 4: Run `npm -w apps/web test` → expect PASS
+- [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
+
+## Task 17: Web Trends — select all snapshots + values tables in columns
+
+Follow `docs/plans/2026-02-18-trends-select-all-and-values-columns.md`.
+
+- [x] Step 1: Add failing web UI tests for:
+	- Select all snapshots control in Trends include snapshots
+	- Multi-column layout for trend values tables
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Implement Select all snapshots control in `apps/web/src/App.tsx`
+- [x] Step 4: Implement multi-column layout for trend values tables in `apps/web/src/App.tsx`
+- [x] Step 5: Run `npm -w apps/web test` → expect PASS
+- [x] Step 6: Run `npm -w apps/web run typecheck` → expect PASS
+- [ ] Step 7: Commit
