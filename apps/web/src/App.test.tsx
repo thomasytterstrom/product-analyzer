@@ -1267,7 +1267,8 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /show trend/i }));
 
-    expect(await screen.findByLabelText("Trend chart")).toBeInTheDocument();
+    const hero = await screen.findByTestId("trend-hero");
+    expect(within(hero).getByLabelText("Trend chart")).toBeInTheDocument();
 
     const seriesList = await screen.findByRole("list", { name: /trend series/i });
     expect(within(seriesList).getByText("FW")).toBeInTheDocument();
@@ -1441,7 +1442,8 @@ describe("App", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /show trend/i }));
 
-    expect(await screen.findByLabelText("Trend chart")).toBeInTheDocument();
+    const hero = await screen.findByTestId("trend-hero");
+    expect(within(hero).getByLabelText("Trend chart")).toBeInTheDocument();
 
     const seriesList = await screen.findByRole("list", { name: /trend series/i });
     const w = within(seriesList);
@@ -1618,7 +1620,8 @@ describe("App", () => {
     expect(fw).toHaveAttribute("data-series-color", "chart-1");
     expect(temp).toHaveAttribute("data-series-color", "chart-2");
 
-    const chart = await screen.findByLabelText("Trend chart");
+    const hero = await screen.findByTestId("trend-hero");
+    const chart = within(hero).getByLabelText("Trend chart");
     // Recharts renders SVG paths; assert our stroke values are present.
     expect(chart.querySelectorAll('path[stroke="hsl(var(--chart-1))"]').length).toBeGreaterThan(0);
     expect(chart.querySelectorAll('path[stroke="hsl(var(--chart-2))"]').length).toBeGreaterThan(0);
@@ -1709,6 +1712,10 @@ describe("App", () => {
     // Controls are a responsive two-column grid.
     expect(controls).toHaveClass("grid");
     expect(controls).toHaveClass("md:grid-cols-2");
+
+    // Before "Show trend", the hero shows a placeholder message (no chart yet).
+    expect(within(hero).getByText("Chart")).toBeInTheDocument();
+    expect(within(hero).getByText(/select snapshots \+ fields/i)).toBeInTheDocument();
 
     // Section headings still present.
     expect(within(controls).getByText(/include snapshots/i)).toBeInTheDocument();
