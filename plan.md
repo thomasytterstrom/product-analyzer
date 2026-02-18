@@ -204,4 +204,4 @@ Follow `docs/plans/2026-02-18-trends-select-all-and-values-columns.md`.
 - [x] Step 4: Implement multi-column layout for trend values tables in `apps/web/src/App.tsx`
 - [x] Step 5: Run `npm -w apps/web test` → expect PASS
 - [x] Step 6: Run `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 7: Commit
+- [x] Step 7: Commit
