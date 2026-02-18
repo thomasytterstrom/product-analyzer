@@ -174,4 +174,4 @@ Follow `docs/plans/2026-02-18-trends-hero-layout.md`.
 - [x] Step 3: Update Trends layout in `apps/web/src/App.tsx` (hero chart + 2-column controls)
 - [x] Step 4: Run `npm -w apps/web test` → expect PASS
 - [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
-- [ ] Step 6: Commit (`feat(web): make trends chart hero and controls two-column`)
+- [x] Step 6: Commit (`feat(web): make trends chart hero and controls two-column`)
