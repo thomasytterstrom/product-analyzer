@@ -47,6 +47,19 @@ const CHART_COLORS = [
   "hsl(var(--chart-5))"
 ] as const;
 
+function formatIsoDate(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toISOString().slice(0, 10);
+}
+
+function formatIsoDateTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  // Keep it compact but still clearly timestamp-y.
+  return d.toISOString().replace(".000Z", "Z");
+}
+
 function getChartColor(index: number) {
   return CHART_COLORS[index % CHART_COLORS.length];
 }
@@ -136,6 +149,16 @@ export default function App() {
     return [...byTs.values()].sort((a, b) =>
       String(a.timeStampUtc).localeCompare(String(b.timeStampUtc))
     );
+  })();
+
+  const trendChartTimeRange = (() => {
+    if (numericTrendChartRows.length === 0) return null;
+
+    const first = String(numericTrendChartRows[0]?.timeStampUtc ?? "");
+    const last = String(numericTrendChartRows[numericTrendChartRows.length - 1]?.timeStampUtc ?? "");
+    if (!first || !last) return null;
+
+    return { from: first, to: last };
   })();
 
   const configurationId =
@@ -1022,6 +1045,12 @@ export default function App() {
                                   Numeric tracked fields plotted over time.
                                 </div>
                               </div>
+
+                              {trendChartTimeRange ? (
+                                <div aria-label="Trend time range" className="text-xs text-muted-foreground">
+                                  {formatIsoDate(trendChartTimeRange.from)} – {formatIsoDate(trendChartTimeRange.to)}
+                                </div>
+                              ) : null}
                             </div>
 
                             {numericTrendSeries.length > 0 && numericTrendChartRows.length >= 2 ? (
@@ -1034,7 +1063,7 @@ export default function App() {
                                     <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
                                     <XAxis dataKey="timeStampUtc" hide />
                                     <YAxis />
-                                    <Tooltip />
+                                    <Tooltip labelFormatter={(label) => formatIsoDateTime(String(label))} />
                                     <Legend />
                                     {numericTrendSeries.map((s) => (
                                       <Line

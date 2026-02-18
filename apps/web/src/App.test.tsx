@@ -1637,6 +1637,11 @@ describe("App", () => {
     // Recharts renders SVG paths; assert our stroke values are present.
     expect(chart.querySelectorAll('path[stroke="hsl(var(--chart-1))"]').length).toBeGreaterThan(0);
     expect(chart.querySelectorAll('path[stroke="hsl(var(--chart-2))"]').length).toBeGreaterThan(0);
+
+    // Timestamp should be visible even without hovering a point.
+    const timeRange = within(hero).getByLabelText(/trend time range/i);
+    expect(timeRange).toHaveTextContent("2026-02-17");
+    expect(timeRange).toHaveTextContent("2026-02-18");
   });
 
   it("lays out Trends controls as two columns under a hero chart panel", async () => {

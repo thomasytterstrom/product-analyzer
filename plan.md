@@ -205,3 +205,11 @@ Follow `docs/plans/2026-02-18-trends-select-all-and-values-columns.md`.
 - [x] Step 5: Run `npm -w apps/web test` → expect PASS
 - [x] Step 6: Run `npm -w apps/web run typecheck` → expect PASS
 - [x] Step 7: Commit
+
+## Task 18: Web Trends — visualize timestamp range
+
+- [x] Step 1: Add failing web UI test for visible timestamp/time-range label in the Trends hero chart
+- [x] Step 2: Run `npm -w apps/web test` → expect FAIL
+- [x] Step 3: Update `apps/web/src/App.tsx` to render a visible trend time range label (and format chart tooltip timestamp)
+- [x] Step 4: Run `npm -w apps/web test` → expect PASS
+- [x] Step 5: Run `npm -w apps/web run typecheck` → expect PASS
