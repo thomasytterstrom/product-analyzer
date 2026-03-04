@@ -1,0 +1,48 @@
+# Dockerfile for Product Analyzer API
+# Build: docker build -t product-analyzer-api .
+# Run: docker run -p 3000:3000 -v /path/to/data:/app/data product-analyzer-api
+
+FROM node:20-alpine AS base
+WORKDIR /app
+
+# Install dependencies
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+COPY package.json package-lock.json* ./
+COPY apps/api/package.json apps/api/
+COPY packages/shared/package.json packages/shared/
+RUN npm ci --workspace=@product-analyzer/shared
+RUN npm ci --workspace=@product-analyzer/api
+
+# Build TypeScript
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build:api
+
+# Production image
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 appuser
+
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/package.json ./package.json
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules/.prisma/client ./node_modules/.prisma/client
+
+USER appuser
+
+# Create data directory for SQLite databases
+RUN mkdir -p /app/data
+ENV SOURCE_DB_PATH=/app/data/source.db
+ENV METADATA_DB_PATH=/app/data/metadata.db
+ENV PORT=3000
+
+EXPOSE 3000
+
+CMD ["node", "dist/server.js"]

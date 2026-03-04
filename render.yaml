@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: product-analyzer-api
+    env: node
+    buildCommand: npm ci && npm run typecheck --workspace=@product-analyzer/api
+    # Needs a build step to transpile TS to JS or use tsx
+    startCommand: npm start --workspace=@product-analyzer/api
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SOURCE_DB_PATH
+        value: /data/source.db
+      - key: METADATA_DB_PATH
+        value: /data/metadata.db
+      - key: PORT
+        value: 10000
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
