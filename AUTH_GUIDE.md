@@ -113,6 +113,20 @@ export function buildServer(opts: { /* ... */ }) {
     } catch (err) {
       reply.code(401).send({ error: "Unauthorized", message: err.message });
     }
+## 5. Automated Setup
+
+To help you with this migration, I've created a `setup-deploy.js` script in the root directory. You can run it with:
+
+```bash
+node setup-deploy.js
+```
+
+This script will:
+- Initialize a GitHub repo and push your code.
+- Initialize Supabase locally.
+- Link your project to Vercel.
+- Provide instructions for setting up GitHub Secrets for automatic deployment.
+
   });
 
   // ... rest of routes

@@ -56,6 +56,18 @@ async function run() {
     console.error("❌ Vercel linking failed. You may need to run 'npx vercel login' first.");
   }
 
+  // 4. Environment Secrets
+  log("Configuring GitHub Secrets for CI/CD...");
+  try {
+    console.log("Enter your SUPABASE_URL: ");
+    // ... prompt or just tell them to set it
+    console.log("Use: gh secret set SUPABASE_URL --body 'your-url'");
+    console.log("Use: gh secret set SUPABASE_ANON_KEY --body 'your-key'");
+    console.log("Use: gh secret set SUPABASE_JWT_SECRET --body 'your-secret'");
+  } catch (e) {
+    console.warn("⚠️ GitHub Secrets configuration failed.");
+  }
+
   log("Local automation complete!");
   console.log("\nNext Steps:");
   console.log("1. Go to https://supabase.com and create a new project.");
