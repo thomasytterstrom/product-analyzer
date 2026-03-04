@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build --workspace=@product-analyzer/web",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "https://product-analyzer-api.onrender.com/health"
+    },
+    {
+      "source": "/product-numbers",
+      "destination": "https://product-analyzer-api.onrender.com/product-numbers"
+    },
+    {
+      "source": "/product-numbers/:productNumber/serial-numbers",
+      "destination": "https://product-analyzer-api.onrender.com/product-numbers/:productNumber/serial-numbers"
+    },
+    {
+      "source": "/products/:productNumber/:serialNumber/snapshots",
+      "destination": "https://product-analyzer-api.onrender.com/products/:productNumber/:serialNumber/snapshots"
+    },
+    {
+      "source": "/products/:productNumber/:serialNumber/diff",
+      "destination": "https://product-analyzer-api.onrender.com/products/:productNumber/:serialNumber/diff"
+    },
+    {
+      "source": "/products/:productNumber/:serialNumber/timeseries",
+      "destination": "https://product-analyzer-api.onrender.com/products/:productNumber/:serialNumber/timeseries"
+    },
+    {
+      "source": "/snapshots/:deviceSnapshotId/fields",
+      "destination": "https://product-analyzer-api.onrender.com/snapshots/:deviceSnapshotId/fields"
+    },
+    {
+      "source": "/configurations/:configurationId/fields",
+      "destination": "https://product-analyzer-api.onrender.com/configurations/:configurationId/fields"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
