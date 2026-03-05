@@ -1,3 +1,14 @@
+## 0. Automated Data Migration (Recommended)
+
+I have created a dedicated script to migrate your data from local SQLite files (like those in `apps/api/data`) directly to Supabase.
+
+1.  **Configure `.env`**: Ensure `DATABASE_URL`, `SOURCE_DB_PATH`, and `METADATA_DB_PATH` are set.
+2.  **Run Migration**:
+    ```bash
+    npx tsx scripts/migrate-to-supabase.ts
+    ```
+This will automatically migrate your Configuration Fields and Snapshots to the remote database.
+
 # PostgreSQL Migration Guide for Product Analyzer
 
 If you choose to host the metadata database on a free PostgreSQL service like Supabase or Neon instead of a persistent SQLite file on Render/Railway, you will need to migrate the API logic from `better-sqlite3` to a PostgreSQL client.

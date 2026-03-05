@@ -1,3 +1,16 @@
+## 4. Automated Data Migration
+
+I have created a script that automatically copies your data from your local SQLite files (in `apps/api/data`) to your Supabase instance.
+
+### How to use:
+1.  Ensure your `.env` file has the correct `DATABASE_URL`, `SOURCE_DB_PATH`, and `METADATA_DB_PATH`.
+2.  Run the migration script:
+    ```bash
+    npx tsx scripts/migrate-to-supabase.ts
+    ```
+
+This script handles both your configuration fields (metadata) and your device snapshots (source data).
+
 # Authentication Guide with Supabase Auth
 
 This guide explains how to add authentication to the Product Analyzer using Supabase Auth, integrated with your React frontend and Fastify backend.

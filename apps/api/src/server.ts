@@ -1,4 +1,5 @@
 import Fastify, { FastifyInstance } from "fastify";
+import fastifyJWT from "@fastify/jwt";
 import { MetadataDb } from "./db/metadataDb.js";
 import { SourceDb } from "./db/sourceDb.js";
 import { openMetadataDb } from "./db/metadataDb.js";
@@ -6,19 +7,24 @@ import { openSourceDb } from "./db/sourceDb.js";
 import { openMetadataDbPostgres } from "./db/metadataDbPostgres.js";
 import { openSourceDbPostgres } from "./db/sourceDbPostgres.js";
 import { diffAttributes, flattenSnapshotJson } from "@product-analyzer/shared";
+import { runMigration } from "./services/migration.service.js";
 
 export function buildServer(opts?: { 
   sourceDbPath?: string; 
   metadataDbPath?: string;
   databaseUrl?: string;
+  jwtSecret?: string;
 }) {
   const app = Fastify({ logger: false });
 
-  const isPostgres = !!(opts?.databaseUrl || process.env.DATABASE_URL);
+  const databaseUrl = opts?.databaseUrl || process.env.DATABASE_URL;
+  const isPostgres = !!databaseUrl;
+  const jwtSecret = opts?.jwtSecret || process.env.SUPABASE_JWT_SECRET;
 
+  // 1. Setup Database
   const source: SourceDb | null = (() => {
     if (isPostgres) {
-      return openSourceDbPostgres({ connectionString: opts?.databaseUrl || process.env.DATABASE_URL! });
+      return openSourceDbPostgres({ connectionString: databaseUrl! });
     }
     const path = opts?.sourceDbPath || process.env.SOURCE_DB_PATH;
     return path ? openSourceDb({ dbPath: path }) : null;
@@ -26,14 +32,37 @@ export function buildServer(opts?: {
 
   const meta: MetadataDb | null = (() => {
     if (isPostgres) {
-      return openMetadataDbPostgres({ connectionString: opts?.databaseUrl || process.env.DATABASE_URL! });
+      return openMetadataDbPostgres({ connectionString: databaseUrl! });
     }
     const path = opts?.metadataDbPath || process.env.METADATA_DB_PATH;
     return path ? openMetadataDb({ dbPath: path }) : null;
   })();
 
+  // 2. Setup Authentication (Optional but enforced if secret is present)
+  if (jwtSecret) {
+    app.register(fastifyJWT, {
+      secret: jwtSecret
+    });
+
+    app.addHook("onRequest", async (request, reply) => {
+      // Skip auth for health check
+      if (request.url === "/health") return;
+
+      try {
+        await request.jwtVerify();
+      } catch (err: any) {
+        reply.code(401).send({ error: "Unauthorized", message: err.message });
+      }
+    });
+  }
+
+  // 3. Routes
   app.get("/health", async () => {
-    return { ok: true, database: isPostgres ? "postgres" : "sqlite" };
+    return { 
+      ok: true, 
+      database: isPostgres ? "postgres" : "sqlite",
+      auth: !!jwtSecret ? "enabled" : "disabled"
+    };
   });
 
   app.get("/product-numbers", async () => {
@@ -164,6 +193,43 @@ export function buildServer(opts?: {
       })).sort((a, b) => a.timeStampUtc.localeCompare(b.timeStampUtc))
     }));
   });
+  app.post("/sync", async (req, reply) => {
+    const databaseUrl = opts?.databaseUrl || process.env.DATABASE_URL;
+    const sourceDbPath = opts?.sourceDbPath || process.env.SOURCE_DB_PATH;
+    const metadataDbPath = opts?.metadataDbPath || process.env.METADATA_DB_PATH;
+
+    if (!databaseUrl) {
+      reply.code(400);
+      return { error: "DATABASE_URL is not configured. Sync only works when a remote Postgres database is targeted." };
+    }
+
+    if (!sourceDbPath || !metadataDbPath) {
+      reply.code(500);
+      return { error: "Local database paths are not configured." };
+    }
+
+    try {
+      const result = await runMigration({
+        databaseUrl,
+        sourceDbPath,
+        metadataDbPath
+      });
+
+      if (!result.success) {
+        reply.code(500);
+        return { error: "Migration failed", details: result.errors };
+      }
+
+      return {
+        message: "Sync completed successfully",
+        ...result
+      };
+    } catch (error: any) {
+      reply.code(500);
+      return { error: "Internal Server Error during sync", message: error.message };
+    }
+  });
+
 
   app.addHook("onClose", async () => {
     await Promise.all([source?.close(), meta?.close()]);

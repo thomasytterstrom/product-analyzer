@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-
-import { createApiClient } from "./lib/api";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
@@ -18,6 +16,11 @@ import {
   XAxis,
   YAxis
 } from "recharts";
+
+import { createApiClient } from "./lib/api";
+import { supabase } from "./lib/supabase";
+import { Login } from "./Auth";
+import { Session } from "@supabase/supabase-js";
 
 type SnapshotField = { fieldKey: string; valueText: string; valueType: string };
 type ConfigurationFieldRow = {
@@ -56,7 +59,6 @@ function formatIsoDate(iso: string) {
 function formatIsoDateTime(iso: string) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  // Keep it compact but still clearly timestamp-y.
   return d.toISOString().replace(".000Z", "Z");
 }
 
@@ -85,8 +87,65 @@ function ChartColorDot({ index }: { index: number }) {
 }
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const api = useMemo(() => {
+    return createApiClient({
+      baseUrl: "",
+      token: session?.access_token
+    });
+  }, [session]);
+
   const [productNumbers, setProductNumbers] = useState<string[]>([]);
   const [selectedProductNumber, setSelectedProductNumber] = useState<string>("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ metadataMigrated: number; snapshotsMigrated: number } | null>(null);
+
+  async function handleSync() {
+    if (!session) return;
+    setSyncing(true);
+    try {
+      const res = await api.syncData();
+      if (res.success) {
+        setSyncResult({ 
+          metadataMigrated: res.metadataMigrated, 
+          snapshotsMigrated: res.snapshotsMigrated 
+        });
+        
+        // Refresh product numbers after sync
+        const pns = await api.listProductNumbers();
+        setProductNumbers(pns);
+        
+        // Clear result after 5 seconds
+        setTimeout(() => setSyncResult(null), 5000);
+      } else {
+        alert("Sync finished with errors: " + res.errors.join(", "));
+      }
+    } catch (err: any) {
+      console.error("Sync failed", err);
+      alert("Sync failed: " + err.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   const [serialNumbers, setSerialNumbers] = useState<string[]>([]);
   const [selectedSerialNumber, setSelectedSerialNumber] = useState<string>("");
   const [snapshots, setSnapshots] = useState<
@@ -209,9 +268,6 @@ export default function App() {
     return haystack.includes(normalizedFieldFilter);
   }
 
-  // Field discovery: seed the tracked-fields editor with keys present in the selected snapshot.
-  // This enables first-time configurations (no rows in metadata DB yet) to start tracking.
-  // Important: run after config-fields loading completes so an empty GET can't overwrite seeded rows.
   useEffect(() => {
     if (!configurationId) return;
     if (fields.length === 0) return;
@@ -240,7 +296,7 @@ export default function App() {
   }, [configurationId, fields, configurationFieldsLoading]);
 
   useEffect(() => {
-    const api = createApiClient({ baseUrl: "" });
+    if (!session) return;
     let active = true;
     void api.listProductNumbers().then((pns) => {
       if (!active) return;
@@ -250,9 +306,10 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [session, api]);
 
   useEffect(() => {
+    if (!session) return;
     if (!selectedProductNumber) {
       setSerialNumbers([]);
       setSelectedSerialNumber("");
@@ -270,7 +327,6 @@ export default function App() {
       return;
     }
 
-    const api = createApiClient({ baseUrl: "" });
     let active = true;
     void api.listSerialNumbers(selectedProductNumber).then((sns) => {
       if (!active) return;
@@ -292,9 +348,10 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [selectedProductNumber]);
+  }, [session, api, selectedProductNumber]);
 
   useEffect(() => {
+    if (!session) return;
     if (!selectedProductNumber || !selectedSerialNumber) {
       setSnapshots([]);
       setSelectedDeviceSnapshotId("");
@@ -310,7 +367,6 @@ export default function App() {
       return;
     }
 
-    const api = createApiClient({ baseUrl: "" });
     let active = true;
     void api
       .listSnapshots({
@@ -335,15 +391,15 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [selectedProductNumber, selectedSerialNumber]);
+  }, [session, api, selectedProductNumber, selectedSerialNumber]);
 
   useEffect(() => {
+    if (!session) return;
     if (!selectedDeviceSnapshotId) {
       setFields([]);
       return;
     }
 
-    const api = createApiClient({ baseUrl: "" });
     let active = true;
     void api.getSnapshotFields(selectedDeviceSnapshotId).then((fs) => {
       if (!active) return;
@@ -353,15 +409,15 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [selectedDeviceSnapshotId]);
+  }, [session, api, selectedDeviceSnapshotId]);
 
   useEffect(() => {
+    if (!session) return;
     if (!compareDeviceSnapshotId) {
       setCompareFields([]);
       return;
     }
 
-    const api = createApiClient({ baseUrl: "" });
     let active = true;
     void api.getSnapshotFields(compareDeviceSnapshotId).then((fs) => {
       if (!active) return;
@@ -371,7 +427,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [compareDeviceSnapshotId]);
+  }, [session, api, compareDeviceSnapshotId]);
 
   const trackedFieldKeys = configurationFields.filter((f) => f.tracked).map((f) => f.fieldKey);
 
@@ -382,6 +438,7 @@ export default function App() {
   );
 
   useEffect(() => {
+    if (!session) return;
     if (!selectedDeviceSnapshotId || !compareDeviceSnapshotId) {
       setDiffRows([]);
       setDiffLoading(false);
@@ -407,7 +464,6 @@ export default function App() {
       return;
     }
 
-    const api = createApiClient({ baseUrl: "" });
     let active = true;
     setDiffLoading(true);
     void api
@@ -441,6 +497,8 @@ export default function App() {
       active = false;
     };
   }, [
+    session,
+    api,
     selectedDeviceSnapshotId,
     compareDeviceSnapshotId,
     selectedProductNumber,
@@ -452,12 +510,12 @@ export default function App() {
   ]);
 
   async function showTrend() {
+    if (!session) return;
     const fieldKeys = trendFieldKeys;
     if (fieldKeys.length === 0) return;
     if (trendSnapshotIds.length === 0) return;
     if (!selectedProductNumber || !selectedSerialNumber) return;
 
-    const api = createApiClient({ baseUrl: "" });
     setTrendLoading(true);
     try {
       const series = await api.getTimeSeries({
@@ -486,13 +544,13 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (!session) return;
     if (!configurationId) {
       setConfigurationFields([]);
       setConfigurationFieldsLoading(false);
       return;
     }
 
-    const api = createApiClient({ baseUrl: "" });
     let active = true;
     setConfigurationFieldsLoading(true);
     void api
@@ -533,11 +591,10 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [configurationId]);
+  }, [session, api, configurationId, fields]);
 
   async function saveTrackedFields() {
-    if (!configurationId) return;
-    const api = createApiClient({ baseUrl: "" });
+    if (!session || !configurationId) return;
     setConfigurationFieldsSaving(true);
     setConfigurationFieldsSaveError("");
     try {
@@ -573,6 +630,14 @@ export default function App() {
     switchToAnalysisDiff();
   }
 
+  if (authLoading) {
+    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
   return (
     <div className="min-h-screen">
       <header className="border-b bg-background/80 backdrop-blur">
@@ -585,6 +650,28 @@ export default function App() {
           </div>
 
           <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+               {syncResult && (
+                 <span className="text-[10px] text-green-600 font-medium animate-pulse">
+                   Synced {syncResult.snapshotsMigrated} snapshots
+                 </span>
+               )}
+               <Button 
+                 variant="outline" 
+                 size="sm" 
+                 onClick={() => void handleSync()} 
+                 disabled={syncing}
+                 className={syncing ? "animate-pulse" : ""}
+               >
+                 {syncing ? "Syncing..." : "Sync Data"}
+               </Button>
+               <span className="text-xs text-muted-foreground">{session.user.email}</span>
+               <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>Sign Out</Button>
+            </div>
+
+               <span className="text-xs text-muted-foreground">{session.user.email}</span>
+               <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>Sign Out</Button>
+            </div>
             {configurationId ? (
               <Badge className="max-w-[22rem] truncate" title={configurationId}>
                 ConfigurationId: {configurationId}
@@ -861,7 +948,6 @@ export default function App() {
                                           );
 
                                           // Persist immediately (single-row update).
-                                          const api = createApiClient({ baseUrl: "" });
                                           void api
                                             .saveConfigurationFields(configurationId, [
                                               {

@@ -10,12 +10,12 @@ function makeTmpDbPath() {
 }
 
 describe("metadataDb", () => {
-  it("can upsert and list configuration fields", () => {
+  it("can upsert and list configuration fields", async () => {
     const dbPath = makeTmpDbPath();
 
     const meta = openMetadataDb({ dbPath });
 
-    meta.upsertConfigurationFields({
+    await meta.upsertConfigurationFields({
       configurationId: "Construction.RemoteControl.Corea",
       fields: [
         {
@@ -31,7 +31,7 @@ describe("metadataDb", () => {
       ]
     });
 
-    const fields = meta.listConfigurationFields({
+    const fields = await meta.listConfigurationFields({
       configurationId: "Construction.RemoteControl.Corea"
     });
 
@@ -52,7 +52,7 @@ describe("metadataDb", () => {
     ]);
 
     // update existing
-    meta.upsertConfigurationFields({
+    await meta.upsertConfigurationFields({
       configurationId: "Construction.RemoteControl.Corea",
       fields: [
         {
@@ -63,7 +63,7 @@ describe("metadataDb", () => {
       ]
     });
 
-    const after = meta.listConfigurationFields({
+    const after = await meta.listConfigurationFields({
       configurationId: "Construction.RemoteControl.Corea"
     });
 
@@ -82,6 +82,6 @@ describe("metadataDb", () => {
       }
     ]);
 
-    meta.close();
+    await meta.close();
   });
 });

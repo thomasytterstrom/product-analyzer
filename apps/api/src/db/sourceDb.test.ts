@@ -11,7 +11,7 @@ function makeTmpDbPath() {
 }
 
 describe("sourceDb", () => {
-  it("lists product numbers, serial numbers, snapshots and loads snapshot json", () => {
+  it("lists product numbers, serial numbers, snapshots and loads snapshot json", async () => {
     const dbPath = makeTmpDbPath();
     const seed = new Database(dbPath);
 
@@ -56,14 +56,14 @@ describe("sourceDb", () => {
 
     const source = openSourceDb({ dbPath });
 
-    expect(source.listProductNumbers()).toEqual(["531285301", "999"]);
-    expect(source.listSerialNumbers("531285301")).toEqual(["S1"]);
+    expect(await source.listProductNumbers()).toEqual(["531285301", "999"]);
+    expect(await source.listSerialNumbers("531285301")).toEqual(["S1"]);
 
-    const snaps = source.listSnapshots({ productNumber: "531285301", serialNumber: "S1" });
+    const snaps = await source.listSnapshots({ productNumber: "531285301", serialNumber: "S1" });
     expect(snaps.map((s) => s.deviceSnapshotId)).toEqual(["ds2", "ds1"]);
     expect(snaps[0].timeStampUtc).toBe("2026-02-18T07:50:23.000Z");
 
-    expect(source.getSnapshotHeader({ deviceSnapshotId: "ds1" })).toEqual({
+    expect(await source.getSnapshotHeader({ deviceSnapshotId: "ds1" })).toEqual({
       deviceSnapshotId: "ds1",
       productNumber: "531285301",
       serialNumber: "S1",
@@ -71,10 +71,10 @@ describe("sourceDb", () => {
       timeStampUtc: "2026-02-17T07:50:23.000Z"
     });
 
-    expect(source.getSnapshotJson({ deviceSnapshotId: "ds2" })).toBe(
+    expect(await source.getSnapshotJson({ deviceSnapshotId: "ds2" })).toBe(
       JSON.stringify({ ConfigurationId: "C1" })
     );
 
-    source.close();
+    await source.close();
   });
 });

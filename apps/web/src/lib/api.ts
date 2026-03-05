@@ -54,8 +54,10 @@ export type ApiClient = {
     }>
   >;
 };
+  syncData(): Promise<{ success: boolean; metadataMigrated: number; snapshotsMigrated: number; errors: string[] }>;
 
-export function createApiClient(opts: { baseUrl: string }): ApiClient {
+
+export function createApiClient(opts: { baseUrl: string; token?: string }): ApiClient {
   const raw = opts.baseUrl.trim();
   const fallbackOrigin =
     typeof window !== "undefined" && window.location?.origin
@@ -64,9 +66,19 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
 
   const baseUrl = (raw.length > 0 ? raw : fallbackOrigin).replace(/\/+$/, "");
 
+  const getHeaders = () => {
+    const headers: Record<string, string> = {
+      "content-type": "application/json"
+    };
+    if (opts.token) {
+      headers["Authorization"] = `Bearer ${opts.token}`;
+    }
+    return headers;
+  };
+
   return {
     async listProductNumbers() {
-      const res = await fetch(`${baseUrl}/product-numbers`);
+      const res = await fetch(`${baseUrl}/product-numbers`, { headers: getHeaders() });
       if (!res.ok) {
         throw new Error(`GET /product-numbers failed: ${res.status}`);
       }
@@ -75,7 +87,8 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
 
     async listSerialNumbers(productNumber: string) {
       const res = await fetch(
-        `${baseUrl}/product-numbers/${encodeURIComponent(productNumber)}/serial-numbers`
+        `${baseUrl}/product-numbers/${encodeURIComponent(productNumber)}/serial-numbers`,
+        { headers: getHeaders() }
       );
       if (!res.ok) {
         throw new Error(
@@ -87,7 +100,8 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
 
     async listSnapshots({ productNumber, serialNumber }) {
       const res = await fetch(
-        `${baseUrl}/products/${encodeURIComponent(productNumber)}/${encodeURIComponent(serialNumber)}/snapshots`
+        `${baseUrl}/products/${encodeURIComponent(productNumber)}/${encodeURIComponent(serialNumber)}/snapshots`,
+        { headers: getHeaders() }
       );
       if (!res.ok) {
         throw new Error(`GET /products/:productNumber/:serialNumber/snapshots failed: ${res.status}`);
@@ -101,7 +115,8 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
 
     async getSnapshotFields(deviceSnapshotId: string) {
       const res = await fetch(
-        `${baseUrl}/snapshots/${encodeURIComponent(deviceSnapshotId)}/fields`
+        `${baseUrl}/snapshots/${encodeURIComponent(deviceSnapshotId)}/fields`,
+        { headers: getHeaders() }
       );
       if (!res.ok) {
         throw new Error(`GET /snapshots/:deviceSnapshotId/fields failed: ${res.status}`);
@@ -111,7 +126,8 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
 
     async getConfigurationFields(configurationId: string) {
       const res = await fetch(
-        `${baseUrl}/configurations/${encodeURIComponent(configurationId)}/fields`
+        `${baseUrl}/configurations/${encodeURIComponent(configurationId)}/fields`,
+        { headers: getHeaders() }
       );
       if (!res.ok) {
         throw new Error(`GET /configurations/:configurationId/fields failed: ${res.status}`);
@@ -132,7 +148,7 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         `${baseUrl}/configurations/${encodeURIComponent(configurationId)}/fields`,
         {
           method: "PUT",
-          headers: { "content-type": "application/json" },
+          headers: getHeaders(),
           body: JSON.stringify({ fields })
         }
       );
@@ -157,7 +173,8 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
           "/diff?snapshotA=" +
           encodeURIComponent(snapshotA) +
           "&snapshotB=" +
-          encodeURIComponent(snapshotB)
+          encodeURIComponent(snapshotB),
+          { headers: getHeaders() }
       );
       if (!res.ok) {
         throw new Error("GET /products/:productNumber/:serialNumber/diff failed: " + res.status);
@@ -180,7 +197,7 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         `${baseUrl}/products/${encodeURIComponent(productNumber)}/${encodeURIComponent(serialNumber)}/timeseries`,
         {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: getHeaders(),
           body: JSON.stringify({ snapshotIds, fieldKeys })
         }
       );
@@ -197,5 +214,21 @@ export function createApiClient(opts: { baseUrl: string }): ApiClient {
         }>;
       }>;
     }
+    async syncData() {
+      const res = await fetch(`${baseUrl}/sync`, {
+        method: "POST",
+        headers: getHeaders()
+      });
+      if (!res.ok) {
+        throw new Error(`POST /sync failed: ${res.status}`);
+      }
+      return (await res.json()) as {
+        success: boolean;
+        metadataMigrated: number;
+        snapshotsMigrated: number;
+        errors: string[];
+      };
+    },
+
   };
 }
