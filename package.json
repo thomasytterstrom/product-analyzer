@@ -4,6 +4,13 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev": "concurrently -n api,web \"npm -w apps/api run dev\" \"npm -w apps/web run dev\"",
+    "build:api": "npm run build --workspace=@product-analyzer/api",
+    "start:api": "npm run start --workspace=@product-analyzer/api",
+    "test": "npm --workspaces --if-present run test",
+    "typecheck": "npm --workspaces --if-present run typecheck"
+  },
+
+    "dev": "concurrently -n api,web \"npm -w apps/api run dev\" \"npm -w apps/web run dev\"",
     "test": "npm --workspaces --if-present run test",
     "typecheck": "npm --workspaces --if-present run typecheck"
   },
