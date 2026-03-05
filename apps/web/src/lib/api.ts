@@ -19,7 +19,6 @@ export type ApiClient = {
     Array<{ configurationId: string; fieldKey: string; tracked: boolean; friendlyName: string | null }>
   >;
 
-
   getDiff(input: {
     productNumber: string;
     serialNumber: string;
@@ -53,9 +52,14 @@ export type ApiClient = {
       }>;
     }>
   >;
-};
-  syncData(): Promise<{ success: boolean; metadataMigrated: number; snapshotsMigrated: number; errors: string[] }>;
 
+  syncData(): Promise<{
+    success: boolean;
+    metadataMigrated: number;
+    snapshotsMigrated: number;
+    errors: string[];
+  }>;
+};
 
 export function createApiClient(opts: { baseUrl: string; token?: string }): ApiClient {
   const raw = opts.baseUrl.trim();
@@ -91,9 +95,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
         { headers: getHeaders() }
       );
       if (!res.ok) {
-        throw new Error(
-          `GET /product-numbers/:productNumber/serial-numbers failed: ${res.status}`
-        );
+        throw new Error(`GET /product-numbers/:productNumber/serial-numbers failed: ${res.status}`);
       }
       return (await res.json()) as string[];
     },
@@ -114,10 +116,9 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
     },
 
     async getSnapshotFields(deviceSnapshotId: string) {
-      const res = await fetch(
-        `${baseUrl}/snapshots/${encodeURIComponent(deviceSnapshotId)}/fields`,
-        { headers: getHeaders() }
-      );
+      const res = await fetch(`${baseUrl}/snapshots/${encodeURIComponent(deviceSnapshotId)}/fields`, {
+        headers: getHeaders()
+      });
       if (!res.ok) {
         throw new Error(`GET /snapshots/:deviceSnapshotId/fields failed: ${res.status}`);
       }
@@ -174,7 +175,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
           encodeURIComponent(snapshotA) +
           "&snapshotB=" +
           encodeURIComponent(snapshotB),
-          { headers: getHeaders() }
+        { headers: getHeaders() }
       );
       if (!res.ok) {
         throw new Error("GET /products/:productNumber/:serialNumber/diff failed: " + res.status);
@@ -213,7 +214,8 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
           valueType: string | null;
         }>;
       }>;
-    }
+    },
+
     async syncData() {
       const res = await fetch(`${baseUrl}/sync`, {
         method: "POST",
@@ -228,7 +230,6 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
         snapshotsMigrated: number;
         errors: string[];
       };
-    },
-
+    }
   };
 }

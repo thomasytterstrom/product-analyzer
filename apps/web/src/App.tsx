@@ -668,10 +668,6 @@ export default function App() {
                <span className="text-xs text-muted-foreground">{session.user.email}</span>
                <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>Sign Out</Button>
             </div>
-
-               <span className="text-xs text-muted-foreground">{session.user.email}</span>
-               <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>Sign Out</Button>
-            </div>
             {configurationId ? (
               <Badge className="max-w-[22rem] truncate" title={configurationId}>
                 ConfigurationId: {configurationId}

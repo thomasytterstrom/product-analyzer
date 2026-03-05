@@ -36,6 +36,10 @@
       "destination": "https://product-analyzer-api.onrender.com/configurations/:configurationId/fields"
     },
     {
+      "source": "/sync",
+      "destination": "https://product-analyzer-api.onrender.com/sync"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
