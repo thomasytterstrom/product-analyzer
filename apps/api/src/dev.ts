@@ -17,6 +17,8 @@ fs.mkdirSync(path.dirname(metadataDbPath), { recursive: true });
 const app = buildServer({ sourceDbPath, metadataDbPath });
 
 const port = env.PORT ?? 5174;
+const host = process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1";
+
 const host = "127.0.0.1";
 
 async function main() {

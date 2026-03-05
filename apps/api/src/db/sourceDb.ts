@@ -21,12 +21,12 @@ export type OpenSourceDbOptions = {
 };
 
 export type SourceDb = {
-  listProductNumbers(): string[];
-  listSerialNumbers(productNumber: string): string[];
-  listSnapshots(input: { productNumber: string; serialNumber: string }): SourceSnapshotRow[];
-  getSnapshotHeader(input: { deviceSnapshotId: string }): SourceSnapshotHeader;
-  getSnapshotJson(input: { deviceSnapshotId: string }): string;
-  close(): void;
+  listProductNumbers(): Promise<string[]>;
+  listSerialNumbers(productNumber: string): Promise<string[]>;
+  listSnapshots(input: { productNumber: string; serialNumber: string }): Promise<SourceSnapshotRow[]>;
+  getSnapshotHeader(input: { deviceSnapshotId: string }): Promise<SourceSnapshotHeader>;
+  getSnapshotJson(input: { deviceSnapshotId: string }): Promise<string>;
+  close(): Promise<void>;
 };
 
 export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
@@ -52,21 +52,21 @@ export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
   );
 
   return {
-    listProductNumbers() {
+    async listProductNumbers() {
       return listProductNumbersStmt
         .all()
         .map((r: any) => r.productNumber)
         .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
     },
 
-    listSerialNumbers(productNumber: string) {
+    async listSerialNumbers(productNumber: string) {
       return listSerialNumbersStmt
         .all(productNumber)
         .map((r: any) => r.serialNumber)
         .filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
     },
 
-    listSnapshots({ productNumber, serialNumber }) {
+    async listSnapshots({ productNumber, serialNumber }) {
       return listSnapshotsStmt
         .all(productNumber, serialNumber)
         .map(
@@ -78,7 +78,7 @@ export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
         );
     },
 
-    getSnapshotHeader({ deviceSnapshotId }) {
+    async getSnapshotHeader({ deviceSnapshotId }) {
       const row = getSnapshotHeaderStmt.get(deviceSnapshotId) as
         | {
             deviceSnapshotId?: unknown;
@@ -102,9 +102,7 @@ export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
       };
     },
 
-    getSnapshotJson({ deviceSnapshotId }) {
-      // Lazily prepare so callers can use other methods even if DeviceSnapshotJson
-      // isn't present (e.g., tests seeding minimal schema).
+    async getSnapshotJson({ deviceSnapshotId }) {
       const getSnapshotJsonStmt = db.prepare(
         "SELECT Json as json FROM DeviceSnapshotJson WHERE DeviceSnapshotId = ?"
       );
@@ -116,7 +114,7 @@ export function openSourceDb(opts: OpenSourceDbOptions): SourceDb {
       return row.json;
     },
 
-    close() {
+    async close() {
       db.close();
     }
   };

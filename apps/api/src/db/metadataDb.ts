@@ -15,9 +15,9 @@ export type MetadataDb = {
   upsertConfigurationFields(input: {
     configurationId: string;
     fields: Array<{ fieldKey: string; tracked: boolean; friendlyName?: string | null }>;
-  }): void;
-  listConfigurationFields(input: { configurationId: string }): ConfigurationFieldRow[];
-  close(): void;
+  }): Promise<void>;
+  listConfigurationFields(input: { configurationId: string }): Promise<ConfigurationFieldRow[]>;
+  close(): Promise<void>;
 };
 
 function nowUtcIso() {
@@ -57,7 +57,7 @@ export function openMetadataDb(opts: OpenMetadataDbOptions): MetadataDb {
   `);
 
   return {
-    upsertConfigurationFields({ configurationId, fields }) {
+    async upsertConfigurationFields({ configurationId, fields }) {
       const ts = nowUtcIso();
       const tx = db.transaction(() => {
         for (const f of fields) {
@@ -76,16 +76,16 @@ export function openMetadataDb(opts: OpenMetadataDbOptions): MetadataDb {
       tx();
     },
 
-    listConfigurationFields({ configurationId }) {
+    async listConfigurationFields({ configurationId }) {
       return listStmt.all(configurationId).map((r: any) => ({
         configurationId: String(r.configurationId),
-        fieldKey: String(r.fieldKey),
+        fieldKey: String(r.field_key || r.fieldKey),
         friendlyName: r.friendlyName === null || typeof r.friendlyName === "string" ? r.friendlyName : String(r.friendlyName),
         tracked: Boolean(r.tracked)
       }));
     },
 
-    close() {
+    async close() {
       db.close();
     }
   };
