@@ -13,6 +13,7 @@ export function buildServer(opts?: {
   sourceDbPath?: string; 
   metadataDbPath?: string;
   databaseUrl?: string;
+  syncDatabaseUrl?: string;
   jwtSecret?: string;
 }) {
   const app = Fastify({ logger: false });
@@ -194,7 +195,7 @@ export function buildServer(opts?: {
     }));
   });
   app.post("/sync", async (req, reply) => {
-    const databaseUrl = opts?.databaseUrl || process.env.DATABASE_URL;
+    const databaseUrl = opts?.syncDatabaseUrl || process.env.SYNC_DATABASE_URL || opts?.databaseUrl || process.env.DATABASE_URL;
     const sourceDbPath = opts?.sourceDbPath || process.env.SOURCE_DB_PATH;
     const metadataDbPath = opts?.metadataDbPath || process.env.METADATA_DB_PATH;
 

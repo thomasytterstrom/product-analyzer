@@ -5,17 +5,14 @@ CREATE TABLE IF NOT EXISTS public.allowed_users (
   created_at timestamp with time zone DEFAULT now()
 );
 
--- 2. Create a function to check if the user is allowed
 CREATE OR REPLACE FUNCTION public.check_allowed_user()
 RETURNS trigger AS $$
 BEGIN
-  IF EXISTS (
-    SELECT 1 FROM public.allowed_users 
-    WHERE email = NEW.email
-  ) THEN
+  -- Allow only emails from a specific domain (e.g., @husqvarna.com)
+  IF NEW.email LIKE '%@husqvarna.com' THEN
     RETURN NEW;
   ELSE
-    RAISE EXCEPTION 'Signup not allowed: % is not in the allowed users list.', NEW.email;
+    RAISE EXCEPTION 'Signup not allowed: Only @husqvarna.com emails are permitted.';
   END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

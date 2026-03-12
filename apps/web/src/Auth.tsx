@@ -13,7 +13,7 @@ export function Login() {
         <Auth
           supabaseClient={supabase}
           appearance={{ theme: ThemeSupa }}
-          providers={["github"]}
+          providers={[]}
           theme="default"
         />
       </div>

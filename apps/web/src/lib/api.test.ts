@@ -246,4 +246,54 @@ describe("createApiClient", () => {
       })
     );
   });
+
+  it("syncs without sending an empty json content type header", async () => {
+    const api = createApiClient({ baseUrl: "http://example.test" });
+
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          metadataMigrated: 1,
+          snapshotsMigrated: 2,
+          errors: []
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    };
+
+    const result = await api.syncData();
+
+    expect(result).toEqual({
+      success: true,
+      metadataMigrated: 1,
+      snapshotsMigrated: 2,
+      errors: []
+    });
+    expect(calls[0].url).toBe("http://example.test/sync");
+    expect(calls[0].init?.method).toBe("POST");
+    expect(calls[0].init?.headers).toEqual({});
+    expect(calls[0].init?.body).toBeUndefined();
+  });
+
+  it("surfaces backend sync error messages", async () => {
+    const api = createApiClient({ baseUrl: "http://example.test" });
+
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          error: "DATABASE_URL is not configured. Sync only works when a remote Postgres database is targeted."
+        }),
+        {
+          status: 400,
+          headers: { "content-type": "application/json" }
+        }
+      );
+
+    await expect(api.syncData()).rejects.toThrow(
+      "DATABASE_URL is not configured. Sync only works when a remote Postgres database is targeted."
+    );
+  });
 });

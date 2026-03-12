@@ -9,6 +9,7 @@ import { getEnv } from "./env.js";
 const env = getEnv(process.env);
 
 const databaseUrl = env.DATABASE_URL;
+const syncDatabaseUrl = env.SYNC_DATABASE_URL;
 const jwtSecret = env.SUPABASE_JWT_SECRET;
 const sourceDbPath = env.SOURCE_DB_PATH ? path.resolve(env.SOURCE_DB_PATH) : undefined;
 const metadataDbPath = env.METADATA_DB_PATH ? path.resolve(env.METADATA_DB_PATH) : undefined;
@@ -18,7 +19,7 @@ if (metadataDbPath) {
 	fs.mkdirSync(path.dirname(metadataDbPath), { recursive: true });
 }
 
-const app = buildServer({ databaseUrl, jwtSecret, sourceDbPath, metadataDbPath });
+const app = buildServer({ databaseUrl, syncDatabaseUrl, jwtSecret, sourceDbPath, metadataDbPath });
 
 const port = env.PORT ?? 5174;
 const host = process.env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1";

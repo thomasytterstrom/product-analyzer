@@ -4,6 +4,9 @@ const EnvSchema = z.object({
   // Connection string for Postgres (optional, falls back to SQLite)
   DATABASE_URL: z.string().optional(),
 
+  // Optional separate connection string used only by the sync route.
+  SYNC_DATABASE_URL: z.string().optional(),
+
   // JWT Secret for Supabase Auth (optional, if provided auth is enforced)
   SUPABASE_JWT_SECRET: z.string().optional(),
 

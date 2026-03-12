@@ -11,7 +11,8 @@ export default defineConfig({
       "/product-numbers": "http://127.0.0.1:5174",
       "/products": "http://127.0.0.1:5174",
       "/snapshots": "http://127.0.0.1:5174",
-      "/configurations": "http://127.0.0.1:5174"
+      "/configurations": "http://127.0.0.1:5174",
+      "/sync": "http://127.0.0.1:5174"
     }
   },
   test: {

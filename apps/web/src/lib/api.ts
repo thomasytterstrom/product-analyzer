@@ -61,6 +61,39 @@ export type ApiClient = {
   }>;
 };
 
+async function getResponseErrorMessage(res: Response, fallbackMessage: string) {
+  const contentType = res.headers.get("content-type") ?? "";
+
+  try {
+    if (contentType.includes("application/json")) {
+      const payload = (await res.json()) as { error?: unknown; message?: unknown };
+      if (typeof payload?.error === "string" && payload.error.trim().length > 0) {
+        return payload.error;
+      }
+      if (typeof payload?.message === "string" && payload.message.trim().length > 0) {
+        return payload.message;
+      }
+    }
+
+    const text = await res.text();
+    if (text.trim().length > 0) {
+      return text;
+    }
+  } catch {
+    // Fall through to the default message when the response body cannot be parsed.
+  }
+
+  return fallbackMessage;
+}
+
+async function ensureOk(res: Response, fallbackMessage: string) {
+  if (res.ok) {
+    return;
+  }
+
+  throw new Error(await getResponseErrorMessage(res, fallbackMessage));
+}
+
 export function createApiClient(opts: { baseUrl: string; token?: string }): ApiClient {
   const raw = opts.baseUrl.trim();
   const fallbackOrigin =
@@ -70,10 +103,12 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
 
   const baseUrl = (raw.length > 0 ? raw : fallbackOrigin).replace(/\/+$/, "");
 
-  const getHeaders = () => {
+  const getHeaders = (includeJsonContentType = false) => {
     const headers: Record<string, string> = {
-      "content-type": "application/json"
     };
+    if (includeJsonContentType) {
+      headers["content-type"] = "application/json";
+    }
     if (opts.token) {
       headers["Authorization"] = `Bearer ${opts.token}`;
     }
@@ -83,9 +118,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
   return {
     async listProductNumbers() {
       const res = await fetch(`${baseUrl}/product-numbers`, { headers: getHeaders() });
-      if (!res.ok) {
-        throw new Error(`GET /product-numbers failed: ${res.status}`);
-      }
+      await ensureOk(res, `GET /product-numbers failed: ${res.status}`);
       return (await res.json()) as string[];
     },
 
@@ -94,9 +127,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
         `${baseUrl}/product-numbers/${encodeURIComponent(productNumber)}/serial-numbers`,
         { headers: getHeaders() }
       );
-      if (!res.ok) {
-        throw new Error(`GET /product-numbers/:productNumber/serial-numbers failed: ${res.status}`);
-      }
+      await ensureOk(res, `GET /product-numbers/:productNumber/serial-numbers failed: ${res.status}`);
       return (await res.json()) as string[];
     },
 
@@ -105,9 +136,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
         `${baseUrl}/products/${encodeURIComponent(productNumber)}/${encodeURIComponent(serialNumber)}/snapshots`,
         { headers: getHeaders() }
       );
-      if (!res.ok) {
-        throw new Error(`GET /products/:productNumber/:serialNumber/snapshots failed: ${res.status}`);
-      }
+      await ensureOk(res, `GET /products/:productNumber/:serialNumber/snapshots failed: ${res.status}`);
       return (await res.json()) as Array<{
         deviceSnapshotId: string;
         snapshotId: string;
@@ -119,9 +148,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
       const res = await fetch(`${baseUrl}/snapshots/${encodeURIComponent(deviceSnapshotId)}/fields`, {
         headers: getHeaders()
       });
-      if (!res.ok) {
-        throw new Error(`GET /snapshots/:deviceSnapshotId/fields failed: ${res.status}`);
-      }
+      await ensureOk(res, `GET /snapshots/:deviceSnapshotId/fields failed: ${res.status}`);
       return (await res.json()) as Array<{ fieldKey: string; valueText: string; valueType: string }>;
     },
 
@@ -130,9 +157,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
         `${baseUrl}/configurations/${encodeURIComponent(configurationId)}/fields`,
         { headers: getHeaders() }
       );
-      if (!res.ok) {
-        throw new Error(`GET /configurations/:configurationId/fields failed: ${res.status}`);
-      }
+      await ensureOk(res, `GET /configurations/:configurationId/fields failed: ${res.status}`);
       return (await res.json()) as Array<{
         configurationId: string;
         fieldKey: string;
@@ -149,13 +174,11 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
         `${baseUrl}/configurations/${encodeURIComponent(configurationId)}/fields`,
         {
           method: "PUT",
-          headers: getHeaders(),
+          headers: getHeaders(true),
           body: JSON.stringify({ fields })
         }
       );
-      if (!res.ok) {
-        throw new Error(`PUT /configurations/:configurationId/fields failed: ${res.status}`);
-      }
+      await ensureOk(res, `PUT /configurations/:configurationId/fields failed: ${res.status}`);
       return (await res.json()) as Array<{
         configurationId: string;
         fieldKey: string;
@@ -177,9 +200,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
           encodeURIComponent(snapshotB),
         { headers: getHeaders() }
       );
-      if (!res.ok) {
-        throw new Error("GET /products/:productNumber/:serialNumber/diff failed: " + res.status);
-      }
+      await ensureOk(res, "GET /products/:productNumber/:serialNumber/diff failed: " + res.status);
       return (await res.json()) as {
         configurationId: string;
         snapshotA: { deviceSnapshotId: string; snapshotId: string; timeStampUtc: string };
@@ -198,13 +219,11 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
         `${baseUrl}/products/${encodeURIComponent(productNumber)}/${encodeURIComponent(serialNumber)}/timeseries`,
         {
           method: "POST",
-          headers: getHeaders(),
+          headers: getHeaders(true),
           body: JSON.stringify({ snapshotIds, fieldKeys })
         }
       );
-      if (!res.ok) {
-        throw new Error(`POST /products/:productNumber/:serialNumber/timeseries failed: ${res.status}`);
-      }
+      await ensureOk(res, `POST /products/:productNumber/:serialNumber/timeseries failed: ${res.status}`);
       return (await res.json()) as Array<{
         fieldKey: string;
         points: Array<{
@@ -221,9 +240,7 @@ export function createApiClient(opts: { baseUrl: string; token?: string }): ApiC
         method: "POST",
         headers: getHeaders()
       });
-      if (!res.ok) {
-        throw new Error(`POST /sync failed: ${res.status}`);
-      }
+      await ensureOk(res, `POST /sync failed: ${res.status}`);
       return (await res.json()) as {
         success: boolean;
         metadataMigrated: number;
